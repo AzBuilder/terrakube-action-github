@@ -30,7 +30,7 @@ jobs:
 
 | Variable                         | Usage                                              |
 | -------------------------------- | -------------------------------------------------- |
-| LOGIN_ENDPOINT                   | Default values: https://login.microsoftonline.com  |
+| LOGIN_ENDPOINT (*)               | Default values: https://login.microsoftonline.com  |
 | TERRAKUBE_TENANT_ID (*)          | Azure AD Application tenant ID                     |
 | TERRAKUBE_APPLICATION_ID (*)     | Azure AD Application tenant ID                     |
 | TERRAKUBE_APPLICATION_SECRET (*) | Azure AD Application tenant ID                     |

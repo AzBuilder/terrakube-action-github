@@ -1,9 +1,9 @@
-name: 'Terrakube'
-description: 'Github integration with Terrakube Jobs'
+name: 'TerrakubeAction'
+description: 'Github integration with Terrakube Platform'
 inputs:
   LOGIN_ENDPOINT:  # id of input
     description: 'Microsoft login endpoint by default will use https://login.microsoftonline.com'
-    required: false
+    required: true
     default: 'https://login.microsoftonline.com'
   TERRAKUBE_TENANT_ID:  # id of input
     description: 'Terrakube Azure Tenant Id'
