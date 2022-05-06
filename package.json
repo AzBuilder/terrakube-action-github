@@ -1,0 +1,47 @@
+{
+  "name": "terrakube-action-github",
+  "version": "1.0.0",
+  "description": "Github Action for Terrakube",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc",
+    "format": "prettier --write '**/*.ts'",
+    "format-check": "prettier --check '**/*.ts'",
+    "lint": "eslint src/**/*.ts",
+    "package": "ncc build --source-map --license licenses.txt",
+    "test": "npm run build && jest",
+    "all": "npm run build && npm run format && npm run lint && npm run package && npm test"
+  },
+  "repository": "git+https://github.com/AzBuilder/terrakube-action-github.git",
+  "keywords": [
+    "actions",
+    "node",
+    "setup"
+  ],
+  "author": "Alfredo España <alfespa17@gmail.com>",
+  "license": "apache-2.0",
+  "bugs": {
+    "url": "https://github.com/AzBuilder/terrakube-action-github/issues"
+  },
+  "homepage": "https://github.com/AzBuilder/terrakube-action-github#readme",
+  "private": false,
+  "dependencies": {
+    "@actions/core": "^1.6.0",
+    "@actions/http-client": "^1.0.11",
+    "query-string": "^7.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^16.10.5",
+    "@types/simple-oauth2": "^4.1.1",
+    "@typescript-eslint/parser": "^5.8.1",
+    "@vercel/ncc": "^0.31.1",
+    "eslint": "^7.32.0",
+    "eslint-plugin-github": "^4.3.2",
+    "eslint-plugin-jest": "^25.3.2",
+    "jest": "^27.2.5",
+    "js-yaml": "^4.1.0",
+    "prettier": "2.5.1",
+    "ts-jest": "^27.1.2",
+    "typescript": "^4.6.3"
+  }
+}
