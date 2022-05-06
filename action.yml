@@ -1,0 +1,38 @@
+name: 'Terrakube'
+description: 'Github integration with Terrakube Jobs'
+inputs:
+  LOGIN_ENDPOINT:  # id of input
+    description: 'Microsoft login endpoint by default will use https://login.microsoftonline.com'
+    required: false
+    default: 'https://login.microsoftonline.com'
+  TERRAKUBE_TENANT_ID:  # id of input
+    description: 'Terrakube Azure Tenant Id'
+    required: true
+  TERRAKUBE_APPLICATION_ID:  # id of input
+    description: 'Terrakube Azure Application Id'
+    required: true
+  TERRAKUBE_APPLICATION_SECRET:  # id of input
+    description: 'Terrakube Azure Application Secret'
+    required: true
+  TERRAKUBE_APPLICATION_SCOPE:  # id of input
+    description: 'Who to greet'
+    required: true
+    default: 'api://Terrakube/.default'
+  TERRAKUBE_ORGANIZATION:  # id of input
+    description: 'Terrakube Organization Name'
+    required: true
+  TERRAKUBE_WORKSPACE:  # id of input
+    description: 'Terrakube Workspace Name'
+    required: true
+  TERRAKUBE_TEMPLATE:  # id of input
+    description: 'Terrakube Template Name'
+    required: true
+  TERRAKUBE_ENDPOINT:  # id of input
+    description: 'Terrakube Endpoint'
+    required: true
+outputs:
+  JOB_ID: # id of output
+    description: 'Terrakube Job Execution Id'
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
