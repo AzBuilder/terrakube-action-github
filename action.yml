@@ -1,5 +1,8 @@
 name: 'TerrakubeAction'
 description: 'Github integration with Terrakube Platform'
+branding:
+  icon: 'package'  
+  color: 'purple'
 inputs:
   LOGIN_ENDPOINT:  # id of input
     description: 'Microsoft login endpoint by default will use https://login.microsoftonline.com'
