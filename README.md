@@ -16,11 +16,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: AzBuilder/terrakube-action-github@1.0.0
       with:
-        LOGIN_ENDPOINT: "https://login.microsoftonline.com"
-        TERRAKUBE_TENANT_ID: "36857254-c824-409f-96f5-d3f2de37b016"
-        TERRAKUBE_APPLICATION_ID: "36857254-c824-409f-96f5-d3f2de37b016"
-        TERRAKUBE_APPLICATION_SECRET: "SuperSecret"
-        TERRAKUBE_APPLICATION_SCOPE: "api://TerrakubeApp/.default"
+        TERRAKUBE_TOKEN: "xxxxxx" # Terrakube Personal Access Token
         TERRAKUBE_ORGANIZATION: "terrakube"
         TERRAKUBE_WORKSPACE: "bitbucket"
         TERRAKUBE_TEMPLATE: "vulnerability-snyk"
@@ -30,11 +26,7 @@ jobs:
 
 | Variable                         | Usage                                              |
 | -------------------------------- | -------------------------------------------------- |
-| LOGIN_ENDPOINT (*)               | Default values: https://login.microsoftonline.com  |
-| TERRAKUBE_TENANT_ID (*)          | Azure AD Application tenant ID                     |
-| TERRAKUBE_APPLICATION_ID (*)     | Azure AD Application tenant ID                     |
-| TERRAKUBE_APPLICATION_SECRET (*) | Azure AD Application tenant ID                     |
-| TERRAKUBE_APPLICATION_SCOPE      | Default value: api://Terrakube/.default            |
+| TERRAKUBE_TOKEN (*)              | Terrakube Personal Access Token                    |
 | TERRAKUBE_ORGANIZATION (*)       | Terrakube organization name                        |
 | TERRAKUBE_WORKSPACE (*)          | Terrakube workspace name                           |
 | TERRAKUBE_TEMPLATE (*)           | Terrakube template name                            |
