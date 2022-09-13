@@ -38,21 +38,24 @@ async function run(): Promise<void> {
           const templateId = await terrakubeClient.getTemplateId(organizationId, githubActionInput.terrakubeTemplate)
 
           let updateJob = false
-          Object.keys(terrakubeData.variables).forEach(key => {
-            setupVariable(
+
+          for await (const key of Object.keys(terrakubeData.variables) ){
+            const updateVar = await setupVariable(
               terrakubeClient, 
               organizationId, 
               workspaceId, 
               key, 
               terrakubeData.variables[key]
-            ).then(function(valueChange){
-              if( valueChange && !updateJob){
-                updateJob = true;
-              }
-            })
-          })
+            )
 
+            if( updateVar && !updateJob){
+              updateJob = true;
+            }
+          }
+
+          core.info(`Update Job: ${updateJob}`)
           if(updateJob){
+            core.info(`Calling Create Job: `)
             const jobId = await terrakubeClient.getJobId(organizationId, workspaceId, templateId)
             core.debug(`JobId: ${jobId}`)
             core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
