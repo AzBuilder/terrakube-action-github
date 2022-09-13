@@ -16,8 +16,8 @@ async function run(): Promise<void> {
     console.debug(`Processing: ${currentDirectory}`)
     for await (const file of globber.globGenerator()) {
       console.debug(`Processing: ${file}`)
-      const terrakubeData = JSON.parse(await readFile(`${file}`, "utf8"));
-      terrakubeData.respository = await getRepository();
+      const terrakubeData = JSON.parse(await readFile(`${file}`, "utf8"))
+      terrakubeData.respository = await getRepository()
       terrakubeData.folder = file.replace(currentDirectory,'')
       core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`)
       core.info(`Organization: ${terrakubeData.organization}`)
@@ -37,15 +37,27 @@ async function run(): Promise<void> {
         if (workspaceId !== "") { 
           const templateId = await terrakubeClient.getTemplateId(organizationId, githubActionInput.terrakubeTemplate)
 
-          const jobId = await terrakubeClient.getJobId(organizationId, workspaceId, templateId)
-
+          let updateJob = false
           Object.keys(terrakubeData.variables).forEach(key => {
-            setupVariable(terrakubeClient, organizationId, workspaceId, key, terrakubeData.variables[key]);
+            setupVariable(
+              terrakubeClient, 
+              organizationId, 
+              workspaceId, 
+              key, 
+              terrakubeData.variables[key]
+            ).then(function(valueChange){
+              if( valueChange && !updateJob){
+                updateJob = true;
+              }
+            })
           })
 
-          
-          core.debug(`JobId: ${jobId}`)
-          core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
+          if(updateJob){
+            const jobId = await terrakubeClient.getJobId(organizationId, workspaceId, templateId)
+            core.debug(`JobId: ${jobId}`)
+            core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
+          }
+
         } else {
           core.error(`Workspace not found: ${terrakubeData.workspace} in Organization: ${terrakubeData.organization}`)
         }
@@ -59,8 +71,23 @@ async function run(): Promise<void> {
   }
 }
 
-function setupVariable(terrakubeClient: TerrakubeClient, organizationId: string, workspaceId: string, key: string, value: string) {
+async function setupVariable(terrakubeClient: TerrakubeClient, organizationId: string, workspaceId: string, key: string, value: string) {
+  
+  const variableId = await terrakubeClient.getVariableId(organizationId, workspaceId, key)
 
+  if(variableId === ""){
+    await terrakubeClient.createVariable(organizationId, workspaceId, key, value)
+    return true
+  } else {
+    const variableData = await terrakubeClient.getVariableById(organizationId, workspaceId, variableId)
+
+    if(variableData.data.attributes.value === value){
+      return false
+    } else {
+      await terrakubeClient.updateVariableById(organizationId, workspaceId, variableId, value)
+      return true
+    }
+  }
 }
 
 
