@@ -5,6 +5,7 @@ export interface GitHubActionInput{
     terrakubeEndpoint: string,
     terrakubeRepository: string,
     terrakubeTemplate: string,
+    githubToken: string
   }
   
 export async function getActionInput(): Promise<any>{
@@ -19,12 +20,15 @@ export async function getActionInput(): Promise<any>{
 
     const terrakubeTemplate: string = core.getInput('terrakube_template', { required: true })
     core.debug(`Terrakube Template: ${terrakubeTemplate}`)
+
+    const githubToken: string = core.getInput('github_token', { required: true })
   
     const terrakubeActionInput:GitHubActionInput = {
       token: terrakubeToken,
       terrakubeEndpoint: terrakubeEndpoint,
       terrakubeRepository: terrakubeRepository,
-      terrakubeTemplate: terrakubeTemplate
+      terrakubeTemplate: terrakubeTemplate,
+      githubToken: githubToken
     }
   
     return terrakubeActionInput

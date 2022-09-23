@@ -16,6 +16,9 @@ inputs:
   TERRAKUBE_TEMPLATE:
     description: 'Terrakube Template'
     required: true
+  GITHUB_TOKEN:
+    description: 'Github Token'
+    required: true
 outputs:
   JOB_ID:
     description: 'Terrakube Job Execution Id'

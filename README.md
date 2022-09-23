@@ -20,6 +20,7 @@ jobs:
         TERRAKUBE_TEMPLATE: "vulnerability-snyk"
         TERRAKUBE_REPOSITORY: "https://github.com/AzBuilder/terraform-sample-repository.git"
         TERRAKUBE_ENDPOINT: "https://terrakube.interal/service"
+        GITHUB_TOKEN: "xxxx"
 ```
 
 ## Variables
@@ -30,6 +31,7 @@ jobs:
 | TERRAKUBE_REPOSITORY (*)         | Terrakube git repository                           |
 | TERRAKUBE_TEMPLATE (*)           | Terrakube template name                            |
 | TERRAKUBE_ENDPOINT (*)           | Terrakbue api endpoint                             |
+| GITHUB_TOKEN (*)                 | Github Token                                       |
 
 _(*) = required variable._
 
