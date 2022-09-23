@@ -79,7 +79,7 @@ async function run(): Promise<void> {
           core.debug(`JobId: ${jobId}`)
 
 
-          await checkTerrakubeLogs(terrakubeClient, terrakubeData.githubToken, organizationId, jobId)
+          await checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId)
 
 
           //core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
