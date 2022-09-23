@@ -3,6 +3,7 @@ import * as glob from '@actions/glob'
 import * as exec from '@actions/exec'
 import * as httpm from '@actions/http-client'
 import * as github from '@actions/github'
+import  Convert  from 'ansi-to-html'
 import { GitHubActionInput, getActionInput } from './userInput'
 import { TerrakubeClient } from './terrakube'
 import { readFile } from 'fs/promises'
@@ -138,7 +139,8 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
     core.info(body)
     core.endGroup()
 
-    const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`\n${body}\`\`\` `
+    const convert = new Convert();
+    const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`html \n${convert.toHtml(body)}\`\`\` `
 
     finalComment = finalComment.concat(commentBody)
   }
@@ -147,7 +149,9 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
   const octokit = github.getOctokit(githubToken)
 
   core.info("Getting payload")
-  const pull_request = github.context.payload;
+  const pull_request = github.context.payload; 
+
+
 
   core.info("Send message")
   await octokit.rest.issues.createComment({
