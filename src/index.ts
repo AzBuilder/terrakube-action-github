@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import * as glob from '@actions/glob'
 import * as exec from '@actions/exec'
 import * as httpm from '@actions/http-client'
+import * as github from '@actions/github'
 import { GitHubActionInput, getActionInput } from './userInput'
 import { TerrakubeClient } from './terrakube'
 import { readFile } from 'fs/promises'
@@ -78,7 +79,7 @@ async function run(): Promise<void> {
           core.debug(`JobId: ${jobId}`)
 
 
-          await checkTerrakubeLogs(terrakubeClient, organizationId, jobId)
+          await checkTerrakubeLogs(terrakubeClient, terrakubeData.githubToken, organizationId, jobId)
 
 
           //core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
@@ -105,7 +106,7 @@ async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, organizationId: string, jobId: string) {
+async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken: string, organizationId: string, jobId: string) {
   let jobRunning = true
 
   let jobResponse = await terrakubeClient.getJobData(organizationId, jobId)
@@ -125,7 +126,10 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, organization
   const jobSteps = jobResponseJson.included
   core.info(`${Object.keys(jobSteps).length}`)
 
+  const octokit = github.getOctokit(githubToken)
+  const pull_request = github.context.payload;
 
+  let finalComment = ""
   for (let index = 0; index < Object.keys(jobSteps).length; index++) {
 
     core.startGroup(`Running ${jobSteps[index].attributes.name}`)
@@ -136,7 +140,17 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, organization
     const body: string = await response.readBody()
     core.info(body)
     core.endGroup()
+
+    const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`\n${body}\`\`\` `
+
+    finalComment = finalComment.concat(commentBody)
   }
+
+  await octokit.rest.issues.createComment({
+    ...github.context.repo,
+    issue_number: pull_request.number,
+    body: `${finalComment}`
+  });
 
   if (jobResponseJson.data.attributes.status === "completed") {
     return true
