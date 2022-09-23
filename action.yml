@@ -16,7 +16,7 @@ inputs:
   TERRAKUBE_TEMPLATE:
     description: 'Terrakube Template'
     required: true
-  GITHUB_TOKEN:
+  TOKEN:
     description: 'Github Token'
     required: true
 outputs:
