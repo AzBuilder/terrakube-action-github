@@ -43,6 +43,7 @@ const core = __importStar(require("@actions/core"));
 const glob = __importStar(require("@actions/glob"));
 const exec = __importStar(require("@actions/exec"));
 const httpm = __importStar(require("@actions/http-client"));
+const github = __importStar(require("@actions/github"));
 const userInput_1 = require("./userInput");
 const terrakube_1 = require("./terrakube");
 const promises_1 = require("fs/promises");
@@ -107,7 +108,7 @@ function run() {
                             core.info(`Creating new job: `);
                             const jobId = yield terrakubeClient.createJobId(organizationId, workspaceId, templateId);
                             core.debug(`JobId: ${jobId}`);
-                            yield checkTerrakubeLogs(terrakubeClient, organizationId, jobId);
+                            yield checkTerrakubeLogs(terrakubeClient, terrakubeData.githubToken, organizationId, jobId);
                             //core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
                             //}
                         }
@@ -140,7 +141,7 @@ function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     });
 }
-function checkTerrakubeLogs(terrakubeClient, organizationId, jobId) {
+function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId) {
     return __awaiter(this, void 0, void 0, function* () {
         let jobRunning = true;
         let jobResponse = yield terrakubeClient.getJobData(organizationId, jobId);
@@ -156,13 +157,19 @@ function checkTerrakubeLogs(terrakubeClient, organizationId, jobId) {
         const httpClient = new httpm.HttpClient();
         const jobSteps = jobResponseJson.included;
         core.info(`${Object.keys(jobSteps).length}`);
+        const octokit = github.getOctokit(githubToken);
+        const pull_request = github.context.payload;
+        let finalComment = "";
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
             const response = yield httpClient.get(`${jobSteps[index].attributes.output}`);
             const body = yield response.readBody();
             core.info(body);
             core.endGroup();
+            const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`\n${body}\`\`\` `;
+            finalComment = finalComment.concat(commentBody);
         }
+        yield octokit.rest.issues.createComment(Object.assign(Object.assign({}, github.context.repo), { issue_number: pull_request.number, body: `${finalComment}` }));
         if (jobResponseJson.data.attributes.status === "completed") {
             return true;
         }
