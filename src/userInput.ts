@@ -21,7 +21,7 @@ export async function getActionInput(): Promise<any>{
     const terrakubeTemplate: string = core.getInput('terrakube_template', { required: true })
     core.debug(`Terrakube Template: ${terrakubeTemplate}`)
 
-    const githubToken: string = core.getInput('github_token', { required: true })
+    const githubToken: string = core.getInput('token', { required: true })
   
     const terrakubeActionInput:GitHubActionInput = {
       token: terrakubeToken,

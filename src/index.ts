@@ -126,9 +126,6 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
   const jobSteps = jobResponseJson.included
   core.info(`${Object.keys(jobSteps).length}`)
 
-  const octokit = github.getOctokit(githubToken)
-  const pull_request = github.context.payload;
-
   let finalComment = ""
   for (let index = 0; index < Object.keys(jobSteps).length; index++) {
 
@@ -145,6 +142,11 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
 
     finalComment = finalComment.concat(commentBody)
   }
+
+  core.info("Sending message")
+
+  const octokit = github.getOctokit(githubToken)
+  const pull_request = github.context.payload;
 
   await octokit.rest.issues.createComment({
     ...github.context.repo,
