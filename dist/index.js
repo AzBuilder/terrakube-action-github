@@ -108,7 +108,7 @@ function run() {
                             core.info(`Creating new job: `);
                             const jobId = yield terrakubeClient.createJobId(organizationId, workspaceId, templateId);
                             core.debug(`JobId: ${jobId}`);
-                            yield checkTerrakubeLogs(terrakubeClient, terrakubeData.githubToken, organizationId, jobId);
+                            yield checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId);
                             //core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
                             //}
                         }
