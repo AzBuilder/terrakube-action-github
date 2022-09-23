@@ -2,7 +2,7 @@
   "name": "terrakube-action-github",
   "version": "1.0.0",
   "description": "Github Action for Terrakube",
-  "main": "lib/main.js",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
     "format": "prettier --write '**/*.ts'",
