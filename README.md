@@ -17,22 +17,35 @@ jobs:
     - uses: AzBuilder/terrakube-action-github@1.0.0
       with:
         TERRAKUBE_TOKEN: "xxxxxx" # Terrakube Personal Access Token
-        TERRAKUBE_ORGANIZATION: "terrakube"
-        TERRAKUBE_WORKSPACE: "bitbucket"
         TERRAKUBE_TEMPLATE: "vulnerability-snyk"
+        TERRAKUBE_REPOSITORY: "https://github.com/AzBuilder/terraform-sample-repository.git"
         TERRAKUBE_ENDPOINT: "https://terrakube.interal/service"
 ```
+
 ## Variables
 
 | Variable                         | Usage                                              |
 | -------------------------------- | -------------------------------------------------- |
 | TERRAKUBE_TOKEN (*)              | Terrakube Personal Access Token                    |
-| TERRAKUBE_ORGANIZATION (*)       | Terrakube organization name                        |
-| TERRAKUBE_WORKSPACE (*)          | Terrakube workspace name                           |
+| TERRAKUBE_REPOSITORY (*)         | Terrakube git repository                           |
 | TERRAKUBE_TEMPLATE (*)           | Terrakube template name                            |
 | TERRAKUBE_ENDPOINT (*)           | Terrakbue api endpoint                             |
 
 _(*) = required variable._
+
+## Configuration
+
+Create a file called "terrakube.json" and include the terraform.tfvars
+
+```
+{
+	"organization": "simple",
+	"workspace": "workspace_demo",
+	"workspaceSrc": "https://github.com/AzBuilder/terraform-sample-repository.git",
+	"terraform": "1.2.9",
+	"folder": "/workspace2"
+}
+```
 
 ## Test Locally
 

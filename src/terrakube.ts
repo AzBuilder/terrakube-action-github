@@ -75,6 +75,44 @@ export class TerrakubeClient {
         }
     }
 
+    async createWorkspace(organizationId: string, name:string, terraformVersion: string, folder: string, repository: string, branch: string): Promise<any> {
+        if (this.authenticationToken === 'empty') {
+            this.authenticationToken = this.gitHubActionInput.token
+        }
+
+        core.debug(`POST ${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/workspace`)
+
+        const response: httpm.HttpClientResponse = await this.httpClient.post(
+            `${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/workspace`,
+            `{
+                "data": {
+                  "type": "workspace",
+                  "attributes": {
+                    "name": "${name}",
+                    "source": "${repository}",
+                    "branch": "${branch}",
+                    "folder": "${folder}",
+                    "terraformVersion": "${terraformVersion}"
+                  }
+                }
+              }`,
+            {
+                'Authorization': `Bearer ${this.authenticationToken}`,
+                'Content-Type': 'application/vnd.api+json'
+            }
+        )
+
+        const body: string = await response.readBody()
+        const terrakubeResponse = JSON.parse(body)
+
+        core.debug(`Response: ${JSON.stringify(terrakubeResponse)}`)
+
+        core.info(`Variable Id: ${terrakubeResponse.data.id}`)
+
+        return terrakubeResponse.data.id
+    
+    }
+
     async getTemplateId(organizationId: string, templateName: string): Promise<any> {
         if (this.authenticationToken === 'empty') {
             this.authenticationToken = this.gitHubActionInput.token
@@ -256,7 +294,7 @@ export class TerrakubeClient {
     
     }
 
-    async getJobId(organizationId: string, workspaceId: string, templateId: string): Promise<any> {
+    async createJobId(organizationId: string, workspaceId: string, templateId: string): Promise<any> {
         if (this.authenticationToken === 'empty') {
             this.authenticationToken = this.gitHubActionInput.token
         }
@@ -296,6 +334,28 @@ export class TerrakubeClient {
         core.debug(JSON.stringify(terrakubeResponse))
 
         return terrakubeResponse.data.id
+    }
+
+    async getJobData(organizationId: string, jobId: string): Promise<any> {
+        if (this.authenticationToken === 'empty') {
+            this.authenticationToken = this.gitHubActionInput.token
+        }
+
+        core.debug(`GET ${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/job/${jobId}?include=step`)
+
+        const response: httpm.HttpClientResponse = await this.httpClient.get(
+            `${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/job/${jobId}?include=step`,
+            {
+                'Authorization': `Bearer ${this.authenticationToken}`
+            }
+        )
+
+        const body: string = await response.readBody()
+        const terrakubeResponse = JSON.parse(body)
+
+        core.debug(JSON.stringify(terrakubeResponse))
+
+        return body
     }
 
 
