@@ -16,31 +16,36 @@ jobs:
     - uses: actions/checkout@v3
     - uses: AzBuilder/terrakube-action-github@1.0.0
       with:
-        LOGIN_ENDPOINT: "https://login.microsoftonline.com"
-        TERRAKUBE_TENANT_ID: "36857254-c824-409f-96f5-d3f2de37b016"
-        TERRAKUBE_APPLICATION_ID: "36857254-c824-409f-96f5-d3f2de37b016"
-        TERRAKUBE_APPLICATION_SECRET: "SuperSecret"
-        TERRAKUBE_APPLICATION_SCOPE: "api://TerrakubeApp/.default"
-        TERRAKUBE_ORGANIZATION: "terrakube"
-        TERRAKUBE_WORKSPACE: "bitbucket"
+        TERRAKUBE_TOKEN: "xxxxxx" # Terrakube Personal Access Token
         TERRAKUBE_TEMPLATE: "vulnerability-snyk"
+        TERRAKUBE_REPOSITORY: "https://github.com/AzBuilder/terraform-sample-repository.git"
         TERRAKUBE_ENDPOINT: "https://terrakube.interal/service"
 ```
+
 ## Variables
 
 | Variable                         | Usage                                              |
 | -------------------------------- | -------------------------------------------------- |
-| LOGIN_ENDPOINT (*)               | Default values: https://login.microsoftonline.com  |
-| TERRAKUBE_TENANT_ID (*)          | Azure AD Application tenant ID                     |
-| TERRAKUBE_APPLICATION_ID (*)     | Azure AD Application tenant ID                     |
-| TERRAKUBE_APPLICATION_SECRET (*) | Azure AD Application tenant ID                     |
-| TERRAKUBE_APPLICATION_SCOPE      | Default value: api://Terrakube/.default            |
-| TERRAKUBE_ORGANIZATION (*)       | Terrakube organization name                        |
-| TERRAKUBE_WORKSPACE (*)          | Terrakube workspace name                           |
+| TERRAKUBE_TOKEN (*)              | Terrakube Personal Access Token                    |
+| TERRAKUBE_REPOSITORY (*)         | Terrakube git repository                           |
 | TERRAKUBE_TEMPLATE (*)           | Terrakube template name                            |
 | TERRAKUBE_ENDPOINT (*)           | Terrakbue api endpoint                             |
 
 _(*) = required variable._
+
+## Configuration
+
+Create a file called "terrakube.json" and include the terraform.tfvars
+
+```
+{
+	"organization": "simple",
+	"workspace": "workspace_demo",
+	"workspaceSrc": "https://github.com/AzBuilder/terraform-sample-repository.git",
+	"terraform": "1.2.9",
+	"folder": "/workspace2"
+}
+```
 
 ## Test Locally
 
