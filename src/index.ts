@@ -143,11 +143,13 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
     finalComment = finalComment.concat(commentBody)
   }
 
-  core.info("Sending message")
-
+  core.info("Setup client")
   const octokit = github.getOctokit(githubToken)
+
+  core.info("Getting payload")
   const pull_request = github.context.payload;
 
+  core.info("Send message")
   await octokit.rest.issues.createComment({
     ...github.context.repo,
     issue_number: pull_request.number,
