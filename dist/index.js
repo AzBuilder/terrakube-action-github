@@ -38,12 +38,16 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
 const glob = __importStar(require("@actions/glob"));
 const exec = __importStar(require("@actions/exec"));
 const httpm = __importStar(require("@actions/http-client"));
 const github = __importStar(require("@actions/github"));
+const ansi_to_html_1 = __importDefault(require("ansi-to-html"));
 const userInput_1 = require("./userInput");
 const terrakube_1 = require("./terrakube");
 const promises_1 = require("fs/promises");
@@ -164,7 +168,8 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId)
             const body = yield response.readBody();
             core.info(body);
             core.endGroup();
-            const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`\n${body}\`\`\` `;
+            const convert = new ansi_to_html_1.default();
+            const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`html \n${convert.toHtml(body)}\`\`\` `;
             finalComment = finalComment.concat(commentBody);
         }
         core.info("Setup client");
