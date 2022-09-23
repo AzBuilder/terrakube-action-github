@@ -149,7 +149,7 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
   const octokit = github.getOctokit(githubToken)
 
   core.info("Getting payload")
-  const pull_request = github.context.payload;
+  const pull_request = github.context.payload; 
 
 
 
