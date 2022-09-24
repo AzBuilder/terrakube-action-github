@@ -54,7 +54,7 @@ const promises_1 = require("fs/promises");
 const node_html_markdown_1 = require("node-html-markdown");
 function run() {
     var e_1, _a;
-    var _b;
+    var _b, _c;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const githubActionInput = yield (0, userInput_1.getActionInput)();
@@ -64,8 +64,8 @@ function run() {
             const currentDirectory = yield getCurrentDirectory();
             console.debug(`Processing: ${currentDirectory}`);
             try {
-                for (var _c = __asyncValues(globber.globGenerator()), _d; _d = yield _c.next(), !_d.done;) {
-                    const file = _d.value;
+                for (var _d = __asyncValues(globber.globGenerator()), _e; _e = yield _d.next(), !_e.done;) {
+                    const file = _e.value;
                     const terrakubeData = JSON.parse(yield (0, promises_1.readFile)(`${file}`, "utf8"));
                     core.startGroup(`Execute Workspace ${terrakubeData.workspace}`);
                     console.debug(`Processing: ${file}`);
@@ -77,7 +77,7 @@ function run() {
                     core.info(`Folder: ${terrakubeData.folder}`);
                     core.info(`Action branch: ${process.env.GITHUB_REF}`);
                     core.info(`Branch: ${(_b = process.env.GITHUB_REF) === null || _b === void 0 ? void 0 : _b.toString().split("/")[2]}`);
-                    terrakubeData.branch = process.env.GITHUB_REF_NAME;
+                    terrakubeData.branch = (_c = process.env.GITHUB_REF) === null || _c === void 0 ? void 0 : _c.toString().split("/")[2];
                     //Object.keys(terrakubeData.variables).forEach(key => {
                     //  console.log('Key : ' + key + ', Value : ' + terrakubeData.variables[key])
                     //})
@@ -132,7 +132,7 @@ function run() {
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
-                    if (_d && !_d.done && (_a = _c.return)) yield _a.call(_c);
+                    if (_e && !_e.done && (_a = _d.return)) yield _a.call(_d);
                 }
                 finally { if (e_1) throw e_1.error; }
             }
