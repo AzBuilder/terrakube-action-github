@@ -7,6 +7,7 @@ import  Convert  from 'ansi-to-html'
 import { GitHubActionInput, getActionInput } from './userInput'
 import { TerrakubeClient } from './terrakube'
 import { readFile } from 'fs/promises'
+import { NodeHtmlMarkdown, NodeHtmlMarkdownOptions } from 'node-html-markdown'
 
 async function run(): Promise<void> {
   try {
@@ -31,8 +32,9 @@ async function run(): Promise<void> {
       core.info(`Organization: ${terrakubeData.organization}`)
       core.info(`Workspace: ${terrakubeData.workspace}`)
       core.info(`Folder: ${terrakubeData.folder}`)
-      core.info(`Branch: ${process.env.GITHUB_REF_NAME}`)
-      terrakubeData.branch = process.env.GITHUB_REF_NAME;
+      core.info(`Action branch: ${process.env.GITHUB_REF}`)
+      core.info(`Branch: ${process.env.GITHUB_REF?.toString().split("/")[2]}`)
+      terrakubeData.branch = process.env.GITHUB_REF?.toString().split("/")[2];
 
       //Object.keys(terrakubeData.variables).forEach(key => {
       //  console.log('Key : ' + key + ', Value : ' + terrakubeData.variables[key])
@@ -128,6 +130,12 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
   core.info(`${Object.keys(jobSteps).length}`)
 
   let finalComment = ""
+  const convert = new Convert();
+  const nhm = new NodeHtmlMarkdown(
+    /* options (optional) */ {}, 
+    /* customTransformers (optional) */ undefined,
+    /* customCodeBlockTranslators (optional) */ undefined
+  );
   for (let index = 0; index < Object.keys(jobSteps).length; index++) {
 
     core.startGroup(`Running ${jobSteps[index].attributes.name}`)
@@ -139,8 +147,9 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
     core.info(body)
     core.endGroup()
 
-    const convert = new Convert();
-    const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`html \n${convert.toHtml(body)}\`\`\` `
+    const bodyInHTML = convert.toHtml(body)
+    const bodyInMarkdown = nhm.translate(bodyInHTML);
+    const commentBody = `**Running ${jobSteps[index].attributes.name}** \n${bodyInMarkdown} `
 
     finalComment = finalComment.concat(commentBody)
   }
