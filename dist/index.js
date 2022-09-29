@@ -169,7 +169,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId)
             core.info(body);
             core.endGroup();
             const convert = new ansi_to_html_1.default();
-            const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`html \n${convert.toHtml(body)}\`\`\` `;
+            const commentBody = `Running ${jobSteps[index].attributes.name} \n${convert.toHtml(body)}\n `;
             finalComment = finalComment.concat(commentBody);
         }
         core.info("Setup client");

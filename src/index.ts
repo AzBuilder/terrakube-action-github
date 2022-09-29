@@ -140,7 +140,7 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
     core.endGroup()
 
     const convert = new Convert();
-    const commentBody = `Running ${jobSteps[index].attributes.name} \n \`\`\`html \n${convert.toHtml(body)}\`\`\` `
+    const commentBody = `Running ${jobSteps[index].attributes.name} \n${convert.toHtml(body)}\n `
 
     finalComment = finalComment.concat(commentBody)
   }
