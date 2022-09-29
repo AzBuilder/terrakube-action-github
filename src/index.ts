@@ -32,8 +32,8 @@ async function run(): Promise<void> {
       core.info(`Workspace: ${terrakubeData.workspace}`)
       core.info(`Folder: ${terrakubeData.folder}`)
       core.info(`Action branch: ${process.env.GITHUB_REF}`)
-      core.info(`Branch: ${process.env.GITHUB_REF?.toString().split("/")[2]}`)
-      terrakubeData.branch = process.env.GITHUB_REF?.toString().split("/")[2];
+      core.info(`Branch: ${githubActionInput.branch}`)
+      terrakubeData.branch = githubActionInput.branch
 
       //Object.keys(terrakubeData.variables).forEach(key => {
       //  console.log('Key : ' + key + ', Value : ' + terrakubeData.variables[key])

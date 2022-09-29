@@ -5,7 +5,8 @@ export interface GitHubActionInput{
     terrakubeEndpoint: string,
     terrakubeRepository: string,
     terrakubeTemplate: string,
-    githubToken: string
+    githubToken: string,
+    branch: string
   }
   
 export async function getActionInput(): Promise<any>{
@@ -21,6 +22,9 @@ export async function getActionInput(): Promise<any>{
     const terrakubeTemplate: string = core.getInput('terrakube_template', { required: true })
     core.debug(`Terrakube Template: ${terrakubeTemplate}`)
 
+    const terrakubeBranch: string = core.getInput('terrakube_branch', { required: true })
+    core.debug(`Terrakube Branch: ${terrakubeBranch}`)
+
     const githubToken: string = core.getInput('token', { required: true })
   
     const terrakubeActionInput:GitHubActionInput = {
@@ -28,7 +32,8 @@ export async function getActionInput(): Promise<any>{
       terrakubeEndpoint: terrakubeEndpoint,
       terrakubeRepository: terrakubeRepository,
       terrakubeTemplate: terrakubeTemplate,
-      githubToken: githubToken
+      githubToken: githubToken,
+      branch: terrakubeBranch
     }
   
     return terrakubeActionInput

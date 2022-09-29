@@ -44,13 +44,16 @@ function getActionInput() {
         core.debug(`Terrakube Repository: ${terrakubeRepository}`);
         const terrakubeTemplate = core.getInput('terrakube_template', { required: true });
         core.debug(`Terrakube Template: ${terrakubeTemplate}`);
+        const terrakubeBranch = core.getInput('terrakube_branch', { required: true });
+        core.debug(`Terrakube Branch: ${terrakubeTemplate}`);
         const githubToken = core.getInput('token', { required: true });
         const terrakubeActionInput = {
             token: terrakubeToken,
             terrakubeEndpoint: terrakubeEndpoint,
             terrakubeRepository: terrakubeRepository,
             terrakubeTemplate: terrakubeTemplate,
-            githubToken: githubToken
+            githubToken: githubToken,
+            branch: terrakubeBranch
         };
         return terrakubeActionInput;
     });

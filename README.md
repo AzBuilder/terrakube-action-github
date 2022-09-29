@@ -10,8 +10,6 @@ Add the following snippet to the script section of your github actions file:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-       VERSION: ${{ github.event.release.tag_name }}
     steps:
     - uses: actions/checkout@v3
     - uses: AzBuilder/terrakube-action-github@1.0.0
@@ -20,6 +18,7 @@ jobs:
         TERRAKUBE_TEMPLATE: "vulnerability-snyk"
         TERRAKUBE_REPOSITORY: "https://github.com/AzBuilder/terraform-sample-repository.git"
         TERRAKUBE_ENDPOINT: "https://terrakube.interal/service"
+        TERRAKUBE_BRANCH: ${{ github.event.pull_request.base.ref }}
         GITHUB_TOKEN: "xxxx"
 ```
 
@@ -31,6 +30,7 @@ jobs:
 | TERRAKUBE_REPOSITORY (*)         | Terrakube git repository                           |
 | TERRAKUBE_TEMPLATE (*)           | Terrakube template name                            |
 | TERRAKUBE_ENDPOINT (*)           | Terrakbue api endpoint                             |
+| TERRAKUBE_BRANCH (*)             | Github Branch when running a job                   |
 | GITHUB_TOKEN (*)                 | Github Token                                       |
 
 _(*) = required variable._

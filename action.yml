@@ -16,6 +16,9 @@ inputs:
   TERRAKUBE_TEMPLATE:
     description: 'Terrakube Template'
     required: true
+  TERRAKUBE_BRANCH:
+    description: 'Branch to run the job'
+    required: true
   TOKEN:
     description: 'Github Token'
     required: true
