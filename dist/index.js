@@ -51,7 +51,6 @@ const ansi_to_html_1 = __importDefault(require("ansi-to-html"));
 const userInput_1 = require("./userInput");
 const terrakube_1 = require("./terrakube");
 const promises_1 = require("fs/promises");
-const node_html_markdown_1 = require("node-html-markdown");
 function run() {
     var e_1, _a;
     var _b, _c;
@@ -166,19 +165,14 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId)
         core.info(`${Object.keys(jobSteps).length}`);
         let finalComment = "";
         const convert = new ansi_to_html_1.default();
-        const nhm = new node_html_markdown_1.NodeHtmlMarkdown(
-        /* options (optional) */ {}, 
-        /* customTransformers (optional) */ undefined, 
-        /* customCodeBlockTranslators (optional) */ undefined);
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
             const response = yield httpClient.get(`${jobSteps[index].attributes.output}`);
             const body = yield response.readBody();
             core.info(body);
             core.endGroup();
-            const bodyInHTML = convert.toHtml(body);
-            const bodyInMarkdown = nhm.translate(bodyInHTML);
-            const commentBody = `**Running ${jobSteps[index].attributes.name}** \n${bodyInMarkdown} `;
+            const convert = new ansi_to_html_1.default();
+            const commentBody = `Running ${jobSteps[index].attributes.name} \n${convert.toHtml(body)}\n `;
             finalComment = finalComment.concat(commentBody);
         }
         core.info("Setup client");

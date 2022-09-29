@@ -7,7 +7,6 @@ import  Convert  from 'ansi-to-html'
 import { GitHubActionInput, getActionInput } from './userInput'
 import { TerrakubeClient } from './terrakube'
 import { readFile } from 'fs/promises'
-import { NodeHtmlMarkdown, NodeHtmlMarkdownOptions } from 'node-html-markdown'
 
 async function run(): Promise<void> {
   try {
@@ -131,11 +130,6 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
 
   let finalComment = ""
   const convert = new Convert();
-  const nhm = new NodeHtmlMarkdown(
-    /* options (optional) */ {}, 
-    /* customTransformers (optional) */ undefined,
-    /* customCodeBlockTranslators (optional) */ undefined
-  );
   for (let index = 0; index < Object.keys(jobSteps).length; index++) {
 
     core.startGroup(`Running ${jobSteps[index].attributes.name}`)
@@ -147,9 +141,8 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
     core.info(body)
     core.endGroup()
 
-    const bodyInHTML = convert.toHtml(body)
-    const bodyInMarkdown = nhm.translate(bodyInHTML);
-    const commentBody = `**Running ${jobSteps[index].attributes.name}** \n${bodyInMarkdown} `
+    const convert = new Convert();
+    const commentBody = `Running ${jobSteps[index].attributes.name} \n${convert.toHtml(body)}\n `
 
     finalComment = finalComment.concat(commentBody)
   }
