@@ -31,8 +31,9 @@ async function run(): Promise<void> {
       core.info(`Organization: ${terrakubeData.organization}`)
       core.info(`Workspace: ${terrakubeData.workspace}`)
       core.info(`Folder: ${terrakubeData.folder}`)
-      core.info(`Branch: ${process.env.GITHUB_REF_NAME}`)
-      terrakubeData.branch = process.env.GITHUB_REF_NAME;
+      core.info(`Action branch: ${process.env.GITHUB_REF}`)
+      core.info(`Branch: ${process.env.GITHUB_REF?.toString().split("/")[2]}`)
+      terrakubeData.branch = process.env.GITHUB_REF?.toString().split("/")[2];
 
       //Object.keys(terrakubeData.variables).forEach(key => {
       //  console.log('Key : ' + key + ', Value : ' + terrakubeData.variables[key])
@@ -128,6 +129,7 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
   core.info(`${Object.keys(jobSteps).length}`)
 
   let finalComment = ""
+  const convert = new Convert();
   for (let index = 0; index < Object.keys(jobSteps).length; index++) {
 
     core.startGroup(`Running ${jobSteps[index].attributes.name}`)

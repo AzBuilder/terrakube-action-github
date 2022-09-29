@@ -53,6 +53,7 @@ const terrakube_1 = require("./terrakube");
 const promises_1 = require("fs/promises");
 function run() {
     var e_1, _a;
+    var _b, _c;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const githubActionInput = yield (0, userInput_1.getActionInput)();
@@ -62,8 +63,8 @@ function run() {
             const currentDirectory = yield getCurrentDirectory();
             console.debug(`Processing: ${currentDirectory}`);
             try {
-                for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
-                    const file = _c.value;
+                for (var _d = __asyncValues(globber.globGenerator()), _e; _e = yield _d.next(), !_e.done;) {
+                    const file = _e.value;
                     const terrakubeData = JSON.parse(yield (0, promises_1.readFile)(`${file}`, "utf8"));
                     core.startGroup(`Execute Workspace ${terrakubeData.workspace}`);
                     console.debug(`Processing: ${file}`);
@@ -73,8 +74,9 @@ function run() {
                     core.info(`Organization: ${terrakubeData.organization}`);
                     core.info(`Workspace: ${terrakubeData.workspace}`);
                     core.info(`Folder: ${terrakubeData.folder}`);
-                    core.info(`Branch: ${process.env.GITHUB_REF_NAME}`);
-                    terrakubeData.branch = process.env.GITHUB_REF_NAME;
+                    core.info(`Action branch: ${process.env.GITHUB_REF}`);
+                    core.info(`Branch: ${(_b = process.env.GITHUB_REF) === null || _b === void 0 ? void 0 : _b.toString().split("/")[2]}`);
+                    terrakubeData.branch = (_c = process.env.GITHUB_REF) === null || _c === void 0 ? void 0 : _c.toString().split("/")[2];
                     //Object.keys(terrakubeData.variables).forEach(key => {
                     //  console.log('Key : ' + key + ', Value : ' + terrakubeData.variables[key])
                     //})
@@ -129,7 +131,7 @@ function run() {
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
-                    if (_c && !_c.done && (_a = _b.return)) yield _a.call(_b);
+                    if (_e && !_e.done && (_a = _d.return)) yield _a.call(_d);
                 }
                 finally { if (e_1) throw e_1.error; }
             }
@@ -162,6 +164,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId)
         const jobSteps = jobResponseJson.included;
         core.info(`${Object.keys(jobSteps).length}`);
         let finalComment = "";
+        const convert = new ansi_to_html_1.default();
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
             const response = yield httpClient.get(`${jobSteps[index].attributes.output}`);
