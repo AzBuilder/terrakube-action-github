@@ -15,10 +15,10 @@ jobs:
     - uses: AzBuilder/terrakube-action-github@1.0.0
       with:
         TERRAKUBE_TOKEN: "xxxxxx" # Terrakube Personal Access Token
-        TERRAKUBE_TEMPLATE: "vulnerability-snyk"
+        TERRAKUBE_TEMPLATE: "Terraform-Plan"
         TERRAKUBE_REPOSITORY: "https://github.com/AzBuilder/terraform-sample-repository.git"
         TERRAKUBE_ENDPOINT: "https://terrakube.interal/service"
-        TERRAKUBE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        TERRAKUBE_BRANCH: ${{ github.head_ref }}
         GITHUB_TOKEN: "xxxx"
 ```
 
