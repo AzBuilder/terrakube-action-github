@@ -27,4 +27,4 @@ outputs:
     description: 'Terrakube Job Execution Id'
 runs:
   using: 'node16'
-  main: 'src/index.ts'
+  main: 'dist/index.js'
