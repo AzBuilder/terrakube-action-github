@@ -20,7 +20,6 @@ outputs:
   JOB_ID:
     description: 'Terrakube Job Execution Id'
 runs:
-<<<<<<< HEAD
   using: "composite"
   steps: 
     - name: Get changed folders
@@ -55,7 +54,3 @@ runs:
         INPUT_TERRAKUBE_BRANCH: ${{ inputs.TERRAKUBE_BRANCH }}
         INPUT_TERRAKUBE_FOLDER: ${{ steps.changed-files.outputs.all_changed_files }}
         INPUT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-=======
-  using: 'node16'
-  main: 'dist/index.js'
->>>>>>> main
