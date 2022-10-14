@@ -16,6 +16,9 @@ inputs:
   TERRAKUBE_BRANCH:
     description: 'Branch to run the job'
     required: true
+  TOKEN:
+    description: 'Github token'
+    required: true
 outputs:
   JOB_ID:
     description: 'Terrakube Job Execution Id'
@@ -53,4 +56,4 @@ runs:
         INPUT_TERRAKUBE_TEMPLATE: ${{ inputs.TERRAKUBE_TEMPLATE }}
         INPUT_TERRAKUBE_BRANCH: ${{ inputs.TERRAKUBE_BRANCH }}
         INPUT_TERRAKUBE_FOLDER: ${{ steps.changed-files.outputs.all_changed_files }}
-        INPUT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        INPUT_TOKEN: ${{ inputs.TOKEN }}
