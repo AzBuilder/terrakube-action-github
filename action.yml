@@ -10,21 +10,47 @@ inputs:
   TERRAKUBE_ENDPOINT:
     description: 'Terrakube Endpoint'
     required: true
-  TERRAKUBE_REPOSITORY:
-    description: 'Terrakube Repository'
-    required: true
   TERRAKUBE_TEMPLATE:
     description: 'Terrakube Template'
     required: true
   TERRAKUBE_BRANCH:
     description: 'Branch to run the job'
     required: true
-  TOKEN:
-    description: 'Github Token'
-    required: true
 outputs:
   JOB_ID:
     description: 'Terrakube Job Execution Id'
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: "composite"
+  steps: 
+    - name: Get changed folders
+      id: changed-files
+      uses: tj-actions/changed-files@v31
+      with:
+        dir_names: "true"
+
+    - name: List all folder changes
+      run: |
+
+        for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
+          echo "$folder was changed"
+        done
+
+    - name: Use Node.js 
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16
+    
+    - run: |
+        node dist/index.js
+      id: terrakube-integration
+      shell: bash
+      env:
+        # INPUT_<VARIABLE_NAME> is not available in Composite run steps
+        # https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#example-specifying-inputs
+        INPUT_TERRAKUBE_TOKEN: ${{ inputs.TERRAKUBE_TOKEN }}
+        INPUT_TERRAKUBE_ENDPOINT: ${{ inputs.TERRAKUBE_ENDPOINT }}
+        INPUT_TERRAKUBE_REPOSITORY: ${{ format('{0}/{1}.git', github.server_url, github.repository) }}
+        INPUT_TERRAKUBE_TEMPLATE: ${{ inputs.TERRAKUBE_TEMPLATE }}
+        INPUT_TERRAKUBE_BRANCH: ${{ inputs.TERRAKUBE_BRANCH }}
+        INPUT_TERRAKUBE_FOLDER: ${{ steps.changed-files.outputs.all_changed_files }}
+        INPUT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
