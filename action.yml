@@ -44,7 +44,7 @@ runs:
         node-version: 16
     
     - run: |
-        node dist/index.js
+        node ${{ github.action_path }}/dist/index.js
       id: terrakube-integration
       shell: bash
       env:
