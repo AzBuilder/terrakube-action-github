@@ -32,8 +32,8 @@ runs:
         dir_names: "true"
 
     - name: List all folder changes
+      shell: bash
       run: |
-
         for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
           echo "$folder was changed"
         done
