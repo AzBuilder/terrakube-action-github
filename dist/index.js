@@ -51,6 +51,7 @@ const ansi_to_html_1 = __importDefault(require("ansi-to-html"));
 const userInput_1 = require("./userInput");
 const terrakube_1 = require("./terrakube");
 const promises_1 = require("fs/promises");
+const path_1 = __importDefault(require("path"));
 function run() {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
@@ -61,70 +62,76 @@ function run() {
             const globber = yield glob.create(patterns.join('\n'));
             const currentDirectory = yield getCurrentDirectory();
             console.debug(`Processing: ${currentDirectory}`);
+            core.info(`Changed Directory: ${githubActionInput.terrakubeFolder}`);
             try {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
                     const file = _c.value;
                     const terrakubeData = JSON.parse(yield (0, promises_1.readFile)(`${file}`, "utf8"));
-                    core.startGroup(`Execute Workspace ${terrakubeData.workspace}`);
-                    console.debug(`Processing: ${file}`);
-                    //terrakubeData.respository = await getRepository()
-                    //terrakubeData.folder = file.replace(currentDirectory,'')
-                    core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
-                    core.info(`Organization: ${terrakubeData.organization}`);
-                    core.info(`Workspace: ${terrakubeData.workspace}`);
-                    core.info(`Folder: ${terrakubeData.folder}`);
-                    core.info(`Action branch: ${process.env.GITHUB_REF}`);
-                    core.info(`Branch: ${githubActionInput.branch}`);
-                    terrakubeData.branch = githubActionInput.branch;
-                    //Object.keys(terrakubeData.variables).forEach(key => {
-                    //  console.log('Key : ' + key + ', Value : ' + terrakubeData.variables[key])
-                    //})
-                    core.info(`Running Workspace ${terrakubeData.workspace} with Template ${githubActionInput.terrakubeTemplate}`);
-                    core.info(`Checking if workspace ${terrakubeData.workspace}`);
-                    const organizationId = yield terrakubeClient.getOrganizationId(terrakubeData.organization);
-                    if (organizationId !== "") {
-                        //let updateJob = false
-                        let workspaceId = yield terrakubeClient.getWorkspaceId(organizationId, terrakubeData.workspace);
-                        if (workspaceId === "") {
-                            core.info(`Creating new workspace ${terrakubeData.workspace}`);
-                            workspaceId = yield terrakubeClient.createWorkspace(organizationId, terrakubeData.workspace, terrakubeData.terraform, terrakubeData.folder, terrakubeData.workspaceSrc, terrakubeData.branch);
-                            //updateJob = true
-                        }
-                        core.info(`Searching template ${githubActionInput.terrakubeTemplate}`);
-                        const templateId = yield terrakubeClient.getTemplateId(organizationId, githubActionInput.terrakubeTemplate);
-                        if (templateId !== "") {
-                            core.info(`Using template id ${templateId}`);
-                            /*
-                            for await (const key of Object.keys(terrakubeData.variables)) {
-                              const updateVar = await setupVariable(
-                                terrakubeClient,
-                                organizationId,
-                                workspaceId,
-                                key,
-                                terrakubeData.variables[key]
-                              )
-                  
-                              if (updateVar && !updateJob) {
-                                updateJob = true;
-                              }
-                            }*/
-                            //core.info(`Update Job: ${updateJob}`)
-                            //if (updateJob) {
-                            core.info(`Creating new job: `);
-                            const jobId = yield terrakubeClient.createJobId(organizationId, workspaceId, templateId);
-                            core.debug(`JobId: ${jobId}`);
-                            yield checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId);
-                            //core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
-                            //}
+                    const parentFolder = path_1.default.basename(path_1.default.dirname(file));
+                    core.info(`Folder ${parentFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(parentFolder)}`);
+                    //Folder with terrakube.json file change
+                    if (githubActionInput.terrakubeFolder.split(" ").indexOf(parentFolder) > -1) {
+                        core.startGroup(`Execute Workspace ${terrakubeData.workspace}`);
+                        console.debug(`Processing: ${file}`);
+                        //terrakubeData.respository = await getRepository()
+                        //terrakubeData.folder = file.replace(currentDirectory,'')
+                        core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
+                        core.info(`Organization: ${terrakubeData.organization}`);
+                        core.info(`Workspace: ${terrakubeData.workspace}`);
+                        core.info(`Folder: ${terrakubeData.folder}`);
+                        core.info(`Action branch: ${process.env.GITHUB_REF}`);
+                        core.info(`Branch: ${githubActionInput.branch}`);
+                        terrakubeData.branch = githubActionInput.branch;
+                        //Object.keys(terrakubeData.variables).forEach(key => {
+                        //  console.log('Key : ' + key + ', Value : ' + terrakubeData.variables[key])
+                        //})
+                        core.info(`Running Workspace ${terrakubeData.workspace} with Template ${githubActionInput.terrakubeTemplate}`);
+                        core.info(`Checking if workspace ${terrakubeData.workspace}`);
+                        const organizationId = yield terrakubeClient.getOrganizationId(terrakubeData.organization);
+                        if (organizationId !== "") {
+                            //let updateJob = false
+                            let workspaceId = yield terrakubeClient.getWorkspaceId(organizationId, terrakubeData.workspace);
+                            if (workspaceId === "") {
+                                core.info(`Creating new workspace ${terrakubeData.workspace}`);
+                                workspaceId = yield terrakubeClient.createWorkspace(organizationId, terrakubeData.workspace, terrakubeData.terraform, terrakubeData.folder, terrakubeData.workspaceSrc, terrakubeData.branch);
+                                //updateJob = true
+                            }
+                            core.info(`Searching template ${githubActionInput.terrakubeTemplate}`);
+                            const templateId = yield terrakubeClient.getTemplateId(organizationId, githubActionInput.terrakubeTemplate);
+                            if (templateId !== "") {
+                                core.info(`Using template id ${templateId}`);
+                                /*
+                                for await (const key of Object.keys(terrakubeData.variables)) {
+                                  const updateVar = await setupVariable(
+                                    terrakubeClient,
+                                    organizationId,
+                                    workspaceId,
+                                    key,
+                                    terrakubeData.variables[key]
+                                  )
+                      
+                                  if (updateVar && !updateJob) {
+                                    updateJob = true;
+                                  }
+                                }*/
+                                //core.info(`Update Job: ${updateJob}`)
+                                //if (updateJob) {
+                                core.info(`Creating new job: `);
+                                const jobId = yield terrakubeClient.createJobId(organizationId, workspaceId, templateId);
+                                core.debug(`JobId: ${jobId}`);
+                                yield checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId);
+                                //core.setOutput(`Organization: ${terrakubeData.organization} Workspace: ${terrakubeData.workspace} Job`, jobId);
+                                //}
+                            }
+                            else {
+                                core.error(`Template not found: ${githubActionInput.terrakubeTemplate} in Organization: ${terrakubeData.organization}`);
+                            }
                         }
                         else {
-                            core.error(`Template not found: ${githubActionInput.terrakubeTemplate} in Organization: ${terrakubeData.organization}`);
+                            core.error(`Organization not found: ${terrakubeData.organization} in Endpoint: ${githubActionInput.terrakubeEndpoint}`);
                         }
+                        core.endGroup();
                     }
-                    else {
-                        core.error(`Organization not found: ${terrakubeData.organization} in Endpoint: ${githubActionInput.terrakubeEndpoint}`);
-                    }
-                    core.endGroup();
                 }
             }
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
