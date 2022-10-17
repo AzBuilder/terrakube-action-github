@@ -13,8 +13,8 @@ inputs:
   TERRAKUBE_TEMPLATE:
     description: 'Terrakube Template'
     required: true
-  TERRAKUBE_BRANCH:
-    description: 'Branch to run the job'
+  TERRAKUBE_ORGANIZATION:
+    description: 'Terrakube Organization'
     required: true
   TOKEN:
     description: 'Github token'
@@ -55,5 +55,6 @@ runs:
         INPUT_TERRAKUBE_REPOSITORY: ${{ format('{0}/{1}.git', github.server_url, github.repository) }}
         INPUT_TERRAKUBE_TEMPLATE: ${{ inputs.TERRAKUBE_TEMPLATE }}
         INPUT_TERRAKUBE_BRANCH: ${{ inputs.TERRAKUBE_BRANCH }}
+        INPUT_TERRAKUBE_ORGANIZATION: ${{ inputs.TERRAKUBE_ORGANIZATION }}
         INPUT_TERRAKUBE_FOLDER: ${{ steps.changed-files.outputs.all_changed_files }}
         INPUT_TOKEN: ${{ inputs.TOKEN }}

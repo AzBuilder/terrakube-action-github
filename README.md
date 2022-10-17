@@ -16,7 +16,6 @@ jobs:
       with:
         TERRAKUBE_TOKEN: "xxxxxx" # Terrakube Personal Access Token
         TERRAKUBE_TEMPLATE: "Terraform-Plan"
-        TERRAKUBE_REPOSITORY: "https://github.com/AzBuilder/terraform-sample-repository.git"
         TERRAKUBE_ENDPOINT: "https://terrakube.interal/service"
         TERRAKUBE_BRANCH: ${{ github.head_ref }}
         GITHUB_TOKEN: "xxxx"
@@ -27,9 +26,9 @@ jobs:
 | Variable                         | Usage                                              |
 | -------------------------------- | -------------------------------------------------- |
 | TERRAKUBE_TOKEN (*)              | Terrakube Personal Access Token                    |
-| TERRAKUBE_REPOSITORY (*)         | Terrakube git repository                           |
 | TERRAKUBE_TEMPLATE (*)           | Terrakube template name                            |
 | TERRAKUBE_ENDPOINT (*)           | Terrakbue api endpoint                             |
+| TERRAKUBE_ORGANIZATION (*)       | Terrakbue organization                             |
 | TERRAKUBE_BRANCH (*)             | Github Branch when running a job                   |
 | GITHUB_TOKEN (*)                 | Github Token                                       |
 
@@ -41,11 +40,7 @@ Create a file called "terrakube.json" and include the terraform.tfvars
 
 ```
 {
-	"organization": "simple",
-	"workspace": "workspace_demo",
-	"workspaceSrc": "https://github.com/AzBuilder/terraform-sample-repository.git",
-	"terraform": "1.2.9",
-	"folder": "/workspace2"
+	"terraform": "1.2.9"
 }
 ```
 
