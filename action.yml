@@ -16,8 +16,14 @@ inputs:
   TERRAKUBE_ORGANIZATION:
     description: 'Terrakube Organization'
     required: true
+  TERRAKUBE_BRANCH:
+    description: 'Repository branch to be executed'
+    required: true
+  SHOW_OUTPUT:
+    description: 'Show Terrakube job output inside github commets'
+    required: true
   TOKEN:
-    description: 'Github token'
+    description: 'Github Token'
     required: true
 outputs:
   JOB_ID:
@@ -44,7 +50,7 @@ runs:
         node-version: 16
     
     - run: |
-        node ${{ github.action_path }}/dist/index.js
+        node ${{ github.action_path }}/dist/main.js
       id: terrakube-integration
       shell: bash
       env:
@@ -57,4 +63,5 @@ runs:
         INPUT_TERRAKUBE_BRANCH: ${{ inputs.TERRAKUBE_BRANCH }}
         INPUT_TERRAKUBE_ORGANIZATION: ${{ inputs.TERRAKUBE_ORGANIZATION }}
         INPUT_TERRAKUBE_FOLDER: ${{ steps.changed-files.outputs.all_changed_files }}
+        INPUT_SHOW_OUTPUT: ${{ inputs.SHOW_OUTPUT }}
         INPUT_TOKEN: ${{ inputs.TOKEN }}

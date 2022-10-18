@@ -8,6 +8,7 @@ export interface GitHubActionInput{
     terrakubeOrganization: string,
     terrakubeFolder: string,
     githubToken: string,
+    showOutput: boolean,
     branch: string
   }
   
@@ -33,6 +34,9 @@ export async function getActionInput(): Promise<any>{
     const terrakubeOrganization: string = core.getInput('terrakube_organization', { required: true })
     core.debug(`Terrakube Organization: ${terrakubeOrganization}`)
 
+    const showOutput: boolean = core.getBooleanInput('show_output', { required: true })
+    core.debug(`Show Output Job: ${terrakubeOrganization}`)
+
     const githubToken: string = core.getInput('token', { required: true })
   
     const terrakubeActionInput:GitHubActionInput = {
@@ -43,6 +47,7 @@ export async function getActionInput(): Promise<any>{
       terrakubeOrganization: terrakubeOrganization,
       terrakubeFolder: terrakubeFolder,
       githubToken: githubToken,
+      showOutput: showOutput,
       branch: terrakubeBranch
     }
   

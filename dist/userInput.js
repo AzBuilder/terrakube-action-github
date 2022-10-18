@@ -50,6 +50,8 @@ function getActionInput() {
         core.debug(`Terrakube Folder: ${terrakubeFolder}`);
         const terrakubeOrganization = core.getInput('terrakube_organization', { required: true });
         core.debug(`Terrakube Organization: ${terrakubeOrganization}`);
+        const showOutput = core.getBooleanInput('show_output', { required: true });
+        core.debug(`Show Output Job: ${terrakubeOrganization}`);
         const githubToken = core.getInput('token', { required: true });
         const terrakubeActionInput = {
             token: terrakubeToken,
@@ -59,6 +61,7 @@ function getActionInput() {
             terrakubeOrganization: terrakubeOrganization,
             terrakubeFolder: terrakubeFolder,
             githubToken: githubToken,
+            showOutput: showOutput,
             branch: terrakubeBranch
         };
         return terrakubeActionInput;
