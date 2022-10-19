@@ -87,12 +87,21 @@ class TerrakubeClient {
             }
         });
     }
-    createWorkspace(organizationId, name, terraformVersion, folder, repository, branch) {
+    createWorkspace(organizationId, name, terraformVersion, folder, repository, branch, ssh_key_id) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.authenticationToken === 'empty') {
                 this.authenticationToken = this.gitHubActionInput.token;
             }
             core.debug(`POST ${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/workspace`);
+            const sshData = `,
+        "relationships": {
+            "ssh": {
+                "data": {
+                    "type": "ssh",
+                    "id": "${ssh_key_id}"
+                }
+            }
+        }`;
             const response = yield this.httpClient.post(`${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/workspace`, `{
                 "data": {
                   "type": "workspace",
@@ -102,7 +111,7 @@ class TerrakubeClient {
                     "branch": "${branch}",
                     "folder": "${folder}",
                     "terraformVersion": "${terraformVersion}"
-                  }
+                  }${(ssh_key_id.length > 0 ? sshData : "")}
                 }
               }`, {
                 'Authorization': `Bearer ${this.authenticationToken}`,
@@ -132,6 +141,27 @@ class TerrakubeClient {
             }
             else {
                 core.info(`Template Id: ${terrakubeResponse.data[0].id}`);
+                return terrakubeResponse.data[0].id;
+            }
+        });
+    }
+    getSshId(organizationId, sshName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.authenticationToken === 'empty') {
+                this.authenticationToken = this.gitHubActionInput.token;
+            }
+            core.debug(`GET ${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/ssh?filter[ssh]=name==${sshName}`);
+            const response = yield this.httpClient.get(`${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/ssh?filter[ssh]=name==${sshName}`, {
+                'Authorization': `Bearer ${this.authenticationToken}`
+            });
+            const body = yield response.readBody();
+            const terrakubeResponse = JSON.parse(body);
+            core.debug(`Response size: ${terrakubeResponse.data.length}`);
+            if (terrakubeResponse.data.length === 0) {
+                return "";
+            }
+            else {
+                core.info(`Ssh Id: ${terrakubeResponse.data[0].id}`);
                 return terrakubeResponse.data[0].id;
             }
         });

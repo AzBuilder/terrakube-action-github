@@ -81,7 +81,13 @@ function run() {
                             let workspaceId = yield terrakubeClient.getWorkspaceId(organizationId, workspaceFolder);
                             if (workspaceId === "") {
                                 core.info(`Creating new workspace ${workspaceFolder}`);
-                                workspaceId = yield terrakubeClient.createWorkspace(organizationId, workspaceFolder, terrakubeData.terraform, `/${workspaceFolder}`, githubActionInput.terrakubeRepository, githubActionInput.branch);
+                                let sshId = "";
+                                if (githubActionInput.terrakubeSshKeyName !== "") {
+                                    core.info(`Searching SSH ${githubActionInput.terrakubeSshKeyName}`);
+                                    sshId = yield terrakubeClient.getSshId(organizationId, githubActionInput.terrakubeSshKeyName);
+                                    core.info(`Ssh Id: ${sshId}`);
+                                }
+                                workspaceId = yield terrakubeClient.createWorkspace(organizationId, workspaceFolder, terrakubeData.terraform, `/${workspaceFolder}`, githubActionInput.terrakubeRepository, githubActionInput.branch, sshId);
                             }
                             core.info(`Searching template ${githubActionInput.terrakubeTemplate}`);
                             const templateId = yield terrakubeClient.getTemplateId(organizationId, githubActionInput.terrakubeTemplate);
@@ -142,7 +148,6 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
             const response = yield httpClient.get(`${jobSteps[index].attributes.output}`);
             let body = yield response.readBody();
-            body = body.replace('�', '');
             core.info(body);
             core.endGroup();
             //const convert = new Convert();

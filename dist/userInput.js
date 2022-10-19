@@ -40,7 +40,16 @@ function getActionInput() {
         core.debug(`Terrakube Token: ${terrakubeToken.substring(0, 10)}****`);
         const terrakubeEndpoint = core.getInput('terrakube_endpoint', { required: true });
         core.debug(`Terrakube Endpoint: ${terrakubeEndpoint}`);
-        const terrakubeRepository = core.getInput('terrakube_repository', { required: true });
+        const terrakubeSshKeyName = core.getInput('INPUT_TERRAKUBE_SSH_KEY_NAME', { required: true });
+        const server_url = core.getInput('INPUT_SERVER_URL', { required: true });
+        const git_repository = core.getInput('INPUT_GIT_REPOSITORY', { required: true });
+        let terrakubeRepository = "";
+        if (terrakubeSshKeyName.length > 0) {
+            terrakubeRepository = `git@${new URL(server_url).hostname}:${git_repository}.git`;
+        }
+        else {
+            terrakubeRepository = `${server_url}/${git_repository}.git`;
+        }
         core.debug(`Terrakube Repository: ${terrakubeRepository}`);
         const terrakubeTemplate = core.getInput('terrakube_template', { required: true });
         core.debug(`Terrakube Template: ${terrakubeTemplate}`);
@@ -52,7 +61,7 @@ function getActionInput() {
         core.debug(`Terrakube Organization: ${terrakubeOrganization}`);
         const showOutput = core.getBooleanInput('show_output', { required: true });
         core.debug(`Show Output Job: ${terrakubeOrganization}`);
-        const githubToken = core.getInput('token', { required: true });
+        const githubToken = core.getInput('github_token', { required: true });
         const terrakubeActionInput = {
             token: terrakubeToken,
             terrakubeEndpoint: terrakubeEndpoint,
@@ -60,6 +69,7 @@ function getActionInput() {
             terrakubeTemplate: terrakubeTemplate,
             terrakubeOrganization: terrakubeOrganization,
             terrakubeFolder: terrakubeFolder,
+            terrakubeSshKeyName: terrakubeSshKeyName,
             githubToken: githubToken,
             showOutput: showOutput,
             branch: terrakubeBranch

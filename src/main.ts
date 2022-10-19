@@ -2,7 +2,6 @@ import * as core from '@actions/core'
 import * as glob from '@actions/glob'
 import * as httpm from '@actions/http-client'
 import * as github from '@actions/github'
-import Convert from 'ansi-to-html'
 import { GitHubActionInput, getActionInput } from './userInput'
 import { TerrakubeClient } from './terrakube'
 import { readFile } from 'fs/promises'
@@ -46,7 +45,15 @@ async function run(): Promise<void> {
 
           if (workspaceId === "") {
             core.info(`Creating new workspace ${workspaceFolder}`)
-            workspaceId = await terrakubeClient.createWorkspace(organizationId, workspaceFolder, terrakubeData.terraform, `/${workspaceFolder}`, githubActionInput.terrakubeRepository, githubActionInput.branch)
+             
+            let sshId = ""
+            if(githubActionInput.terrakubeSshKeyName !== ""){
+              core.info(`Searching SSH ${githubActionInput.terrakubeSshKeyName}`)
+              sshId = await terrakubeClient.getSshId(organizationId, githubActionInput.terrakubeSshKeyName)
+              core.info(`Ssh Id: ${sshId}`)
+            }
+
+            workspaceId = await terrakubeClient.createWorkspace(organizationId, workspaceFolder, terrakubeData.terraform, `/${workspaceFolder}`, githubActionInput.terrakubeRepository, githubActionInput.branch, sshId)
           }
 
           core.info(`Searching template ${githubActionInput.terrakubeTemplate}`)
@@ -111,7 +118,6 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
     const response: httpm.HttpClientResponse = await httpClient.get(`${jobSteps[index].attributes.output}`)
 
     let body: string = await response.readBody()
-    body = body.replace('�','') 
     core.info(body)
     core.endGroup()
 

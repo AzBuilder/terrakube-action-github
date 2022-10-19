@@ -38,9 +38,9 @@ export class TerrakubeClient {
 
         core.debug(`Response size: ${terrakubeResponse.data.length}`)
 
-        if (terrakubeResponse.data.length === 0) { 
+        if (terrakubeResponse.data.length === 0) {
             return ""
-        }else{
+        } else {
             core.debug(`Organization Id: ${terrakubeResponse.data[0].id}`)
 
             return terrakubeResponse.data[0].id
@@ -66,21 +66,32 @@ export class TerrakubeClient {
 
         core.debug(`Response size: ${terrakubeResponse.data.length}`)
 
-        if (terrakubeResponse.data.length === 0) { 
+        if (terrakubeResponse.data.length === 0) {
             return ""
-        }else{
+        } else {
             core.info(`Workspace Id: ${terrakubeResponse.data[0].id}`)
 
-        return terrakubeResponse.data[0].id
+            return terrakubeResponse.data[0].id
         }
     }
 
-    async createWorkspace(organizationId: string, name:string, terraformVersion: string, folder: string, repository: string, branch: string): Promise<any> {
+    async createWorkspace(organizationId: string, name: string, terraformVersion: string, folder: string, repository: string, branch: string, ssh_key_id: string): Promise<any> {
         if (this.authenticationToken === 'empty') {
             this.authenticationToken = this.gitHubActionInput.token
         }
 
         core.debug(`POST ${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/workspace`)
+
+
+        const sshData = `,
+        "relationships": {
+            "ssh": {
+                "data": {
+                    "type": "ssh",
+                    "id": "${ssh_key_id}"
+                }
+            }
+        }`
 
         const response: httpm.HttpClientResponse = await this.httpClient.post(
             `${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/workspace`,
@@ -93,7 +104,7 @@ export class TerrakubeClient {
                     "branch": "${branch}",
                     "folder": "${folder}",
                     "terraformVersion": "${terraformVersion}"
-                  }
+                  }${(ssh_key_id.length > 0 ? sshData : "")}
                 }
               }`,
             {
@@ -110,7 +121,7 @@ export class TerrakubeClient {
         core.info(`Variable Id: ${terrakubeResponse.data.id}`)
 
         return terrakubeResponse.data.id
-    
+
     }
 
     async getTemplateId(organizationId: string, templateName: string): Promise<any> {
@@ -132,14 +143,43 @@ export class TerrakubeClient {
 
         core.debug(`Response size: ${terrakubeResponse.data.length}`)
 
-        if (terrakubeResponse.data.length === 0) { 
+        if (terrakubeResponse.data.length === 0) {
             return ""
-        }else{
+        } else {
             core.info(`Template Id: ${terrakubeResponse.data[0].id}`)
 
             return terrakubeResponse.data[0].id
         }
-    
+
+    }
+
+    async getSshId(organizationId: string, sshName: string): Promise<any> {
+        if (this.authenticationToken === 'empty') {
+            this.authenticationToken = this.gitHubActionInput.token
+        }
+
+        core.debug(`GET ${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/ssh?filter[ssh]=name==${sshName}`)
+
+        const response: httpm.HttpClientResponse = await this.httpClient.get(
+            `${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/ssh?filter[ssh]=name==${sshName}`,
+            {
+                'Authorization': `Bearer ${this.authenticationToken}`
+            }
+        )
+
+        const body: string = await response.readBody()
+        const terrakubeResponse = JSON.parse(body)
+
+        core.debug(`Response size: ${terrakubeResponse.data.length}`)
+
+        if (terrakubeResponse.data.length === 0) {
+            return ""
+        } else {
+            core.info(`Ssh Id: ${terrakubeResponse.data[0].id}`)
+
+            return terrakubeResponse.data[0].id
+        }
+
     }
 
     async getVariableId(organizationId: string, workspaceId: string, variableName: string): Promise<any> {
@@ -161,14 +201,14 @@ export class TerrakubeClient {
 
         core.debug(`Response size: ${terrakubeResponse.data.length === 0}`)
 
-        if (terrakubeResponse.data.length === 0) { 
+        if (terrakubeResponse.data.length === 0) {
             return ""
-        }else{
+        } else {
             core.info(`Variable Id: ${terrakubeResponse.data[0].id}`)
 
             return terrakubeResponse.data[0].id
         }
-    
+
     }
 
     async getVariableById(organizationId: string, workspaceId: string, variableId: string): Promise<any> {
@@ -260,7 +300,7 @@ export class TerrakubeClient {
         core.info(`Variable Id: ${terrakubeResponse.data.id}`)
 
         return terrakubeResponse.data.id
-    
+
     }
 
 
@@ -284,14 +324,14 @@ export class TerrakubeClient {
 
         core.debug(`Response size: ${terrakubeResponse.data.length}`)
 
-        if (terrakubeResponse.data.length === 0) { 
+        if (terrakubeResponse.data.length === 0) {
             return ""
-        }else{
+        } else {
             core.info(`Variable Id: ${terrakubeResponse.data[0].id}`)
 
             return terrakubeResponse.data[0].attributes.value
         }
-    
+
     }
 
     async createJobId(organizationId: string, workspaceId: string, templateId: string): Promise<any> {
@@ -301,20 +341,20 @@ export class TerrakubeClient {
 
         const requestBody = {
             "data": {
-              "type": "job",
-              "attributes": {
-                "templateReference": templateId
-              },
-              "relationships":{
-                  "workspace":{
-                      "data":{
-                          "type": "workspace",
-                          "id": workspaceId
-                      }
-                  }
-              }
+                "type": "job",
+                "attributes": {
+                    "templateReference": templateId
+                },
+                "relationships": {
+                    "workspace": {
+                        "data": {
+                            "type": "workspace",
+                            "id": workspaceId
+                        }
+                    }
+                }
             }
-          }
+        }
 
         core.debug(`POST ${this.gitHubActionInput.terrakubeEndpoint}/api/v1/organization/${organizationId}/job`)
         core.debug(`${JSON.stringify(requestBody)}`)

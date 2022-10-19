@@ -19,10 +19,13 @@ inputs:
   TERRAKUBE_BRANCH:
     description: 'Repository branch to be executed'
     required: true
+  TERRAKUBE_SSH_KEY_NAME:
+    description: 'Repository branch to be executed'
+    required: false
   SHOW_OUTPUT:
     description: 'Show Terrakube job output inside github commets'
     required: true
-  TOKEN:
+  GITHUB_TOKEN:
     description: 'Github Token'
     required: true
 outputs:
@@ -45,7 +48,7 @@ runs:
         done
 
     - name: Use Node.js 
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
       with:
         node-version: 16
     
@@ -58,10 +61,12 @@ runs:
         # https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#example-specifying-inputs
         INPUT_TERRAKUBE_TOKEN: ${{ inputs.TERRAKUBE_TOKEN }}
         INPUT_TERRAKUBE_ENDPOINT: ${{ inputs.TERRAKUBE_ENDPOINT }}
-        INPUT_TERRAKUBE_REPOSITORY: ${{ format('{0}/{1}.git', github.server_url, github.repository) }}
         INPUT_TERRAKUBE_TEMPLATE: ${{ inputs.TERRAKUBE_TEMPLATE }}
         INPUT_TERRAKUBE_BRANCH: ${{ inputs.TERRAKUBE_BRANCH }}
         INPUT_TERRAKUBE_ORGANIZATION: ${{ inputs.TERRAKUBE_ORGANIZATION }}
         INPUT_TERRAKUBE_FOLDER: ${{ steps.changed-files.outputs.all_changed_files }}
+        INPUT_TERRAKUBE_SSH_KEY_NAME: ${{ inputs.TERRAKUBE_SSH_KEY_NAME }}
+        INPUT_SERVER_URL: ${{ github.server_url }}
+        INPUT_GIT_REPOSITORY: ${{  github.repository }}
         INPUT_SHOW_OUTPUT: ${{ inputs.SHOW_OUTPUT }}
-        INPUT_TOKEN: ${{ inputs.TOKEN }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
