@@ -24,7 +24,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Test changed-files
+    name: "Running Terrakube Plan"
     steps:
       - uses: actions/checkout@v3
         with:
@@ -58,7 +58,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Test changed-files
+    name: "Running Terrakube Apply"
     steps:
       - uses: actions/checkout@v3
         with:
@@ -91,6 +91,7 @@ Terraform variables could be define inside a terraform.tfvars inside each folder
 | TERRAKUBE_ENDPOINT (*)           | Terrakbue api endpoint                             |
 | TERRAKUBE_ORGANIZATION (*)       | Terrakbue organization                             |
 | TERRAKUBE_BRANCH (*)             | Github Branch when running a job                   |
+| TERRAKUBE_SSH_KEY_NAME (*)       | ssh key name define in the terrakube organization to connect to private repositories  |
 | GITHUB_TOKEN (*)                 | Github Token                                       |
 | SHOW_OUTPUT (*)                  | Show terrakube logs inside PR comments             |
 

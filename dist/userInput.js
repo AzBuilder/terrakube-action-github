@@ -40,7 +40,7 @@ function getActionInput() {
         core.debug(`Terrakube Token: ${terrakubeToken.substring(0, 10)}****`);
         const terrakubeEndpoint = core.getInput('terrakube_endpoint', { required: true });
         core.debug(`Terrakube Endpoint: ${terrakubeEndpoint}`);
-        const terrakubeSshKeyName = core.getInput('INPUT_TERRAKUBE_SSH_KEY_NAME', { required: true });
+        const terrakubeSshKeyName = core.getInput('INPUT_TERRAKUBE_SSH_KEY_NAME', { required: false });
         const server_url = core.getInput('INPUT_SERVER_URL', { required: true });
         const git_repository = core.getInput('INPUT_GIT_REPOSITORY', { required: true });
         let terrakubeRepository = "";
