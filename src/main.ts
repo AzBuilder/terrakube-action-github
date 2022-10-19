@@ -103,14 +103,15 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
   const jobSteps = jobResponseJson.included
   core.info(`${Object.keys(jobSteps).length}`)
 
-  let finalComment = `## Job for Workspace ${workspaceFolder} status ${jobResponseJson.data.attributes.status} \n`
+  let finalComment = `## Workspace: ${workspaceFolder} Status: ${jobResponseJson.data.attributes.status.toUpperCase()} \n`
   for (let index = 0; index < Object.keys(jobSteps).length; index++) {
 
     core.startGroup(`Running ${jobSteps[index].attributes.name}`)
 
     const response: httpm.HttpClientResponse = await httpClient.get(`${jobSteps[index].attributes.output}`)
 
-    const body: string = await response.readBody()
+    let body: string = await response.readBody()
+    body = body.replace('�','') 
     core.info(body)
     core.endGroup()
 
@@ -118,8 +119,8 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
     //const commentBody = `Logs from step: ${jobSteps[index].attributes.name} \`\`\`\n${convert.toHtml(body)}\n\`\`\` `
 
     if (show_output) {
-      const bodyFinal = body.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-      const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`\n${bodyFinal}\n\`\`\` `
+      body = body.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+      const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`\n${body}\n\`\`\` `
       finalComment = finalComment.concat(commentBody)
     }
 
