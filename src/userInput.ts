@@ -20,9 +20,9 @@ export async function getActionInput(): Promise<any> {
   const terrakubeEndpoint: string = core.getInput('terrakube_endpoint', { required: true })
   core.debug(`Terrakube Endpoint: ${terrakubeEndpoint}`)
 
-  const terrakubeSshKeyName = core.getInput('INPUT_TERRAKUBE_SSH_KEY_NAME', { required: false })
-  const server_url = core.getInput('INPUT_SERVER_URL', { required: true })
-  const git_repository = core.getInput('INPUT_GIT_REPOSITORY', { required: true })
+  const terrakubeSshKeyName = core.getInput('terrakube_ssh_key_name', { required: false })
+  const server_url = core.getInput('server_url', { required: true })
+  const git_repository = core.getInput('git_repository', { required: true })
 
   let terrakubeRepository = "";
   if (terrakubeSshKeyName.length > 0) {
