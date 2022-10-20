@@ -72,7 +72,7 @@ jobs:
           TERRAKUBE_BRANCH: "main"
           TERRAKUBE_ORGANIZATION: "terrakube_organization_name"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SHOW_OUTPUT: true
+          SHOW_OUTPUT: false
 
 ```
 

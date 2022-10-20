@@ -45,9 +45,9 @@ async function run(): Promise<void> {
 
           if (workspaceId === "") {
             core.info(`Creating new workspace ${workspaceFolder}`)
-             
+
             let sshId = ""
-            if(githubActionInput.terrakubeSshKeyName !== ""){
+            if (githubActionInput.terrakubeSshKeyName !== "") {
               core.info(`Searching SSH ${githubActionInput.terrakubeSshKeyName}`)
               sshId = await terrakubeClient.getSshId(organizationId, githubActionInput.terrakubeSshKeyName)
               core.info(`Ssh Id: ${sshId}`)
@@ -132,20 +132,20 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
 
   }
 
-  core.info("Setup client")
-  const octokit = github.getOctokit(githubToken)
+  if (show_output) {
+    core.info("Setup Octoki client")
+    const octokit = github.getOctokit(githubToken)
 
-  core.info("Getting payload")
-  const pull_request = github.context.payload;
+    core.info("Getting payload")
+    const pull_request = github.context.payload;
 
-
-
-  core.info("Send message")
-  await octokit.rest.issues.createComment({
-    ...github.context.repo,
-    issue_number: pull_request.number,
-    body: `${finalComment}`
-  });
+    core.info("Send message")
+    await octokit.rest.issues.createComment({
+      ...github.context.repo,
+      issue_number: pull_request.number,
+      body: `${finalComment}`
+    });
+  }
 
   if (jobResponseJson.data.attributes.status === "completed") {
     return true
