@@ -37,7 +37,7 @@ const core = __importStar(require("@actions/core"));
 const httpm = __importStar(require("@actions/http-client"));
 class TerrakubeClient {
     constructor(gitHubActionInput) {
-        this.httpClient = new httpm.HttpClient();
+        this.httpClient = new httpm.HttpClient("TerrakubeActionGithub");
         this.gitHubActionInput = gitHubActionInput;
         this.authenticationToken = 'empty';
         core.info(`Creating Terrakube CLient....`);
