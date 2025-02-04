@@ -65,29 +65,31 @@ function run() {
                     const terrakubeData = JSON.parse(yield (0, promises_1.readFile)(`${file}`, "utf8"));
                     const workspaceFolder = path_1.default.basename(path_1.default.dirname(file));
                     core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`);
+                    const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
+                        ? terrakubeData.workspace : workspaceFolder;
                     //Folder with terrakube.json file change
                     if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
-                        core.startGroup(`Execute Workspace ${workspaceFolder}`);
+                        core.startGroup(`Execute Workspace ${workspaceName}`);
                         console.debug(`Processing: ${file}`);
                         core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
                         core.info(`Organization: ${githubActionInput.terrakubeOrganization}`);
-                        core.info(`Workspace: ${workspaceFolder}`);
+                        core.info(`Workspace: ${workspaceName}`);
                         core.info(`Folder: /${workspaceFolder}`);
                         core.info(`Branch: ${githubActionInput.branch}`);
-                        core.info(`Running Workspace ${workspaceFolder} with Template ${githubActionInput.terrakubeTemplate}`);
-                        core.info(`Checking if workspace ${workspaceFolder}`);
+                        core.info(`Running Workspace ${workspaceName} with Template ${githubActionInput.terrakubeTemplate}`);
+                        core.info(`Checking if workspace ${workspaceName}`);
                         const organizationId = yield terrakubeClient.getOrganizationId(githubActionInput.terrakubeOrganization);
                         if (organizationId !== "") {
-                            let workspaceId = yield terrakubeClient.getWorkspaceId(organizationId, workspaceFolder);
+                            let workspaceId = yield terrakubeClient.getWorkspaceId(organizationId, workspaceName);
                             if (workspaceId === "") {
-                                core.info(`Creating new workspace ${workspaceFolder}`);
+                                core.info(`Creating new workspace ${workspaceName}`);
                                 let sshId = "";
                                 if (githubActionInput.terrakubeSshKeyName !== "") {
                                     core.info(`Searching SSH ${githubActionInput.terrakubeSshKeyName}`);
                                     sshId = yield terrakubeClient.getSshId(organizationId, githubActionInput.terrakubeSshKeyName);
                                     core.info(`Ssh Id: ${sshId}`);
                                 }
-                                workspaceId = yield terrakubeClient.createWorkspace(organizationId, workspaceFolder, terrakubeData.terraform, `/${workspaceFolder}`, githubActionInput.terrakubeRepository, githubActionInput.branch, sshId);
+                                workspaceId = yield terrakubeClient.createWorkspace(organizationId, workspaceName, terrakubeData.terraform, `/${workspaceName}`, githubActionInput.terrakubeRepository, githubActionInput.branch, sshId);
                             }
                             core.info(`Searching template ${githubActionInput.terrakubeTemplate}`);
                             const templateId = yield terrakubeClient.getTemplateId(organizationId, githubActionInput.terrakubeTemplate);
@@ -96,7 +98,7 @@ function run() {
                                 core.info(`Creating new job: `);
                                 const jobId = yield terrakubeClient.createJobId(organizationId, workspaceId, templateId);
                                 core.debug(`JobId: ${jobId}`);
-                                yield checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId, workspaceFolder, githubActionInput.showOutput);
+                                yield checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId, workspaceName, githubActionInput.showOutput);
                             }
                             else {
                                 core.error(`Template not found: ${githubActionInput.terrakubeTemplate} in Organization: ${githubActionInput.terrakubeOrganization}`);
