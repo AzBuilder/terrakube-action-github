@@ -10,7 +10,8 @@ export interface GitHubActionInput {
   terrakubeSshKeyName: string,
   githubToken: string,
   showOutput: boolean,
-  branch: string
+  branch: string,
+  ignoreSslError: boolean
 }
 
 export async function getActionInput(): Promise<any> {
@@ -50,6 +51,9 @@ export async function getActionInput(): Promise<any> {
 
   const githubToken: string = core.getInput('github_token', { required: true })
 
+  const ignoreSslError = core.getInput('ignore_ssl_error', { required: true });
+  core.debug(`Ignore SSL Error: ${terrakubeOrganization}`);
+
   const terrakubeActionInput: GitHubActionInput = {
     token: terrakubeToken,
     terrakubeEndpoint: terrakubeEndpoint,
@@ -60,7 +64,8 @@ export async function getActionInput(): Promise<any> {
     terrakubeSshKeyName: terrakubeSshKeyName,
     githubToken: githubToken,
     showOutput: showOutput,
-    branch: terrakubeBranch
+    branch: terrakubeBranch,
+    ignoreSslError: ignoreSslError
   }
 
   return terrakubeActionInput

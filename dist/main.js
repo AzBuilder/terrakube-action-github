@@ -142,13 +142,15 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
         }
         core.info(`${jobResponse}`);
         core.info(`${JSON.stringify(jobResponseJson.included)}`);
-        const httpClient = new httpm.HttpClient();
+        const httpClient = terrakubeClient.httpClient;
         const jobSteps = jobResponseJson.included;
         core.info(`${Object.keys(jobSteps).length}`);
         let finalComment = `## Workspace: ${workspaceFolder} Status: ${jobResponseJson.data.attributes.status.toUpperCase()} \n`;
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
-            const response = yield httpClient.get(`${jobSteps[index].attributes.output}`);
+            const response = yield httpClient.get(`${jobSteps[index].attributes.output}`, {
+                'Authorization': `Bearer ${terrakubeClient.authenticationToken}`
+            });
             let body = yield response.readBody();
             core.info(body);
             core.endGroup();

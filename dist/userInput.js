@@ -62,6 +62,8 @@ function getActionInput() {
         const showOutput = core.getBooleanInput('show_output', { required: true });
         core.debug(`Show Output Job: ${terrakubeOrganization}`);
         const githubToken = core.getInput('github_token', { required: true });
+        core.debug(`Ignore SSL Error: ${terrakubeOrganization}`);
+        const ignoreSslError = core.getInput('ignore_ssl_error', { required: true });
         const terrakubeActionInput = {
             token: terrakubeToken,
             terrakubeEndpoint: terrakubeEndpoint,
@@ -72,7 +74,8 @@ function getActionInput() {
             terrakubeSshKeyName: terrakubeSshKeyName,
             githubToken: githubToken,
             showOutput: showOutput,
-            branch: terrakubeBranch
+            branch: terrakubeBranch,
+            ignoreSslError: ignoreSslError
         };
         return terrakubeActionInput;
     });
