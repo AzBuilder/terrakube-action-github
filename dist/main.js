@@ -68,8 +68,8 @@ function run() {
                     //Folder with terrakube.json file change
                     if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
                         core.startGroup(`Execute Workspace ${workspaceFolder}`);
-                        console.info(`Processing: ${file}`);
-                        core.info(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
+                        console.debug(`Processing: ${file}`);
+                        core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
                         core.info(`Organization: ${githubActionInput.terrakubeOrganization}`);
                         core.info(`Workspace: ${workspaceFolder}`);
                         core.info(`Folder: /${workspaceFolder}`);
@@ -135,7 +135,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
             yield sleep(5000);
             jobResponse = yield terrakubeClient.getJobData(organizationId, jobId);
             jobResponseJson = JSON.parse(jobResponse);
-            core.info("Waiting for job information...");
+            core.debug("Waiting for job information...");
         }
         core.info(`${jobResponse}`);
         core.info(`${JSON.stringify(jobResponseJson.included)}`);
@@ -149,7 +149,6 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
                 'Authorization': `Bearer ${terrakubeClient.authenticationToken}`
             });
             let body = yield response.readBody();
-            core.info("ANDREW BODY");
             core.info(body);
             core.endGroup();
             //const convert = new Convert();

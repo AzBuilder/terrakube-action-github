@@ -304,8 +304,6 @@ class TerrakubeClient {
             });
             const body = yield response.readBody();
             const terrakubeResponse = JSON.parse(body);
-            
-            core.info("RESPONSE");
             core.info(JSON.stringify(terrakubeResponse));
             return terrakubeResponse.data.id;
         });
