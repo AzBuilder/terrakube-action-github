@@ -37,7 +37,7 @@ const core = __importStar(require("@actions/core"));
 const httpm = __importStar(require("@actions/http-client"));
 class TerrakubeClient {
     constructor(gitHubActionInput) {
-        this.httpClient = new httpm.HttpClient(undefined, [], { ignoreSslError: gitHubActionInput.ignoreSslError });
+        this.httpClient = new httpm.HttpClient(`TerrakubeClient`, [], { ignoreSslError: gitHubActionInput.ignoreSslError });
         this.gitHubActionInput = gitHubActionInput;
         this.authenticationToken = 'empty';
         core.info(`Creating Terrakube CLient....`);
@@ -304,7 +304,7 @@ class TerrakubeClient {
             });
             const body = yield response.readBody();
             const terrakubeResponse = JSON.parse(body);
-            core.info(JSON.stringify(terrakubeResponse));
+            core.debug(JSON.stringify(terrakubeResponse));
             return terrakubeResponse.data.id;
         });
     }
