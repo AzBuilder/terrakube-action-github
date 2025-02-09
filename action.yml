@@ -25,6 +25,10 @@ inputs:
   SHOW_OUTPUT:
     description: 'Show Terrakube job output inside github commets'
     required: true
+  SSL_IGNORE_ERROS:
+    description: 'Ignore SSL errors (e.g. self-signed certificate)'
+    required: false
+    default: false
   GITHUB_TOKEN:
     description: 'Github Token'
     required: true
@@ -70,3 +74,4 @@ runs:
         INPUT_GIT_REPOSITORY: ${{  github.repository }}
         INPUT_SHOW_OUTPUT: ${{ inputs.SHOW_OUTPUT }}
         INPUT_GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+        INPUT_SSL_IGNORE_ERROR: ${{ inputs.SSL_IGNORE_ERROR }}

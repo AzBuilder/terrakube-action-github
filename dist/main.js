@@ -139,7 +139,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
         }
         core.info(`${jobResponse}`);
         core.info(`${JSON.stringify(jobResponseJson.included)}`);
-        const httpClient = new httpm.HttpClient(undefined, [], { ignoreSslError: true });
+        const httpClient = terrakubeClient.httpClient;
         const jobSteps = jobResponseJson.included;
         core.info(`Check - ${Object.keys(jobSteps).length}`);
         let finalComment = `## Workspace: ${workspaceFolder} Status: ${jobResponseJson.data.attributes.status.toUpperCase()} \n`;

@@ -10,7 +10,8 @@ export interface GitHubActionInput {
   terrakubeSshKeyName: string,
   githubToken: string,
   showOutput: boolean,
-  branch: string
+  branch: string,
+  sslIgnoreErrors: boolean
 }
 
 export async function getActionInput(): Promise<any> {
