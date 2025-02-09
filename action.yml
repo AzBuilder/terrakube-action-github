@@ -1,10 +1,10 @@
 name: 'TerrakubeAction'
 description: 'Github integration with Terrakube Platform'
 branding:
-  icon: 'package'  
+  icon: 'package'
   color: 'purple'
 inputs:
-  TERRAKUBE_TOKEN:  
+  TERRAKUBE_TOKEN:
     description: 'Terrakube Personal Access Token'
     required: true
   TERRAKUBE_ENDPOINT:
@@ -25,24 +25,24 @@ inputs:
   SHOW_OUTPUT:
     description: 'Show Terrakube job output inside github commets'
     required: true
-  SSL_IGNORE_ERROS:
-    description: 'Ignore SSL errors (e.g. self-signed certificate)'
-    required: false
-    default: false
   GITHUB_TOKEN:
     description: 'Github Token'
     required: true
+  IGNORE_SSL_ERROR:
+    description: 'Ignore SSL errors (e.g. self-signed certificate)'
+    required: false
+    default: false
 outputs:
   JOB_ID:
     description: 'Terrakube Job Execution Id'
 runs:
-  using: "composite"
-  steps: 
+  using: 'composite'
+  steps:
     - name: Get changed folders
       id: changed-files
       uses: tj-actions/changed-files@v45
       with:
-        dir_names: "true"
+        dir_names: 'true'
 
     - name: List all folder changes
       shell: bash
@@ -51,11 +51,11 @@ runs:
           echo "$folder was changed"
         done
 
-    - name: Use Node.js 
+    - name: Use Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 16
-    
+
     - run: |
         node ${{ github.action_path }}/dist/main.js
       id: terrakube-integration
@@ -74,4 +74,4 @@ runs:
         INPUT_GIT_REPOSITORY: ${{  github.repository }}
         INPUT_SHOW_OUTPUT: ${{ inputs.SHOW_OUTPUT }}
         INPUT_GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-        INPUT_SSL_IGNORE_ERROR: ${{ inputs.SSL_IGNORE_ERROR }}
+        INPUT_IGNORE_SSL_ERROR: ${{ inputs.IGNORE_SSL_ERROR }}
