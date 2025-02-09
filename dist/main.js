@@ -94,9 +94,7 @@ function run() {
                             if (templateId !== "") {
                                 core.info(`Using template id ${templateId}`);
                                 core.info(`Creating new job: `);
-                                core.info(`Andrew test :)`);
                                 const jobId = yield terrakubeClient.createJobId(organizationId, workspaceId, templateId);
-                                core.info(`Andrew, JobId: ${jobId}`);
                                 yield checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId, workspaceFolder, githubActionInput.showOutput);
                             }
                             else {
@@ -144,11 +142,12 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
         const httpClient = new httpm.HttpClient(undefined, [], { ignoreSslError: true });
         const jobSteps = jobResponseJson.included;
         core.info(`Check - ${Object.keys(jobSteps).length}`);
-        core.info(`JOB_STEPS - ${jobSteps[0]}`);
         let finalComment = `## Workspace: ${workspaceFolder} Status: ${jobResponseJson.data.attributes.status.toUpperCase()} \n`;
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
-            const response = yield httpClient.get(`${jobSteps[index].attributes.output}`);
+            const response = yield httpClient.get(`${jobSteps[index].attributes.output}`, {
+                'Authorization': `Bearer ${terrakubeClient.authenticationToken}`
+            });
             let body = yield response.readBody();
             core.info("ANDREW BODY");
             core.info(body);
