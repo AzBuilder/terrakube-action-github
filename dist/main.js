@@ -144,7 +144,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
         const httpClient = new httpm.HttpClient(undefined, [], { ignoreSslError: true });
         const jobSteps = jobResponseJson.included;
         core.info(`Check - ${Object.keys(jobSteps).length}`);
-        core.info(`JOB_STEPS - ${jobSteps}`);
+        core.info(`JOB_STEPS - ${jobSteps[0]}`);
         let finalComment = `## Workspace: ${workspaceFolder} Status: ${jobResponseJson.data.attributes.status.toUpperCase()} \n`;
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
