@@ -95,6 +95,7 @@ function run() {
                                 core.info(`Using template id ${templateId}`);
                                 core.info(`Creating new job: `);
                                 const jobId = yield terrakubeClient.createJobId(organizationId, workspaceId, templateId);
+                                core.debug(`JobId: ${jobId}`);
                                 yield checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId, workspaceFolder, githubActionInput.showOutput);
                             }
                             else {
@@ -141,7 +142,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
         core.info(`${JSON.stringify(jobResponseJson.included)}`);
         const httpClient = terrakubeClient.httpClient;
         const jobSteps = jobResponseJson.included;
-        core.info(`Check - ${Object.keys(jobSteps).length}`);
+        core.info(`${Object.keys(jobSteps).length}`);
         let finalComment = `## Workspace: ${workspaceFolder} Status: ${jobResponseJson.data.attributes.status.toUpperCase()} \n`;
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
