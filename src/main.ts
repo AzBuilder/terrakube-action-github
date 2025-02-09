@@ -22,29 +22,31 @@ async function run(): Promise<void> {
       const workspaceFolder = path.basename(path.dirname(file))
       core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`)
 
+      const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
+        ? terrakubeData.workspace : workspaceFolder
+
       //Folder with terrakube.json file change
       if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
-        core.startGroup(`Execute Workspace ${workspaceFolder}`)
+        core.startGroup(`Execute Workspace ${workspaceName}`)
 
         console.debug(`Processing: ${file}`)
 
 
         core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`)
         core.info(`Organization: ${githubActionInput.terrakubeOrganization}`)
-        core.info(`Workspace: ${workspaceFolder}`)
+        core.info(`Workspace: ${workspaceName}`)
         core.info(`Folder: /${workspaceFolder}`)
         core.info(`Branch: ${githubActionInput.branch}`)
 
-        core.info(`Running Workspace ${workspaceFolder} with Template ${githubActionInput.terrakubeTemplate}`)
-        core.info(`Checking if workspace ${workspaceFolder}`)
+        core.info(`Running Workspace ${workspaceName} with Template ${githubActionInput.terrakubeTemplate}`)
+        core.info(`Checking if workspace ${workspaceName}`)
         const organizationId = await terrakubeClient.getOrganizationId(githubActionInput.terrakubeOrganization);
 
 
         if (organizationId !== "") {
-          let workspaceId = await terrakubeClient.getWorkspaceId(organizationId, workspaceFolder)
-
+          let workspaceId = await terrakubeClient.getWorkspaceId(organizationId, workspaceName)
           if (workspaceId === "") {
-            core.info(`Creating new workspace ${workspaceFolder}`)
+            core.info(`Creating new workspace ${workspaceName}`)
 
             let sshId = ""
             if (githubActionInput.terrakubeSshKeyName !== "") {
@@ -53,7 +55,7 @@ async function run(): Promise<void> {
               core.info(`Ssh Id: ${sshId}`)
             }
 
-            workspaceId = await terrakubeClient.createWorkspace(organizationId, workspaceFolder, terrakubeData.terraform, `/${workspaceFolder}`, githubActionInput.terrakubeRepository, githubActionInput.branch, sshId)
+            workspaceId = await terrakubeClient.createWorkspace(organizationId, workspaceName, terrakubeData.terraform, `/${workspaceName}`, githubActionInput.terrakubeRepository, githubActionInput.branch, sshId)
           }
 
           core.info(`Searching template ${githubActionInput.terrakubeTemplate}`)
@@ -67,7 +69,7 @@ async function run(): Promise<void> {
             core.debug(`JobId: ${jobId}`)
 
 
-            await checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId, workspaceFolder, githubActionInput.showOutput)
+            await checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId, workspaceName, githubActionInput.showOutput)
 
           } else {
             core.error(`Template not found: ${githubActionInput.terrakubeTemplate} in Organization: ${githubActionInput.terrakubeOrganization}`)

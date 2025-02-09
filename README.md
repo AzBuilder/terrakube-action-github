@@ -84,26 +84,27 @@ Terraform variables could be define inside a terraform.tfvars inside each folder
 
 ## GitHub Action Inputs
 
-| Variable                         | Usage                                              |
-| -------------------------------- | -------------------------------------------------- |
-| TERRAKUBE_TOKEN (*)              | Terrakube Personal Access Token                    |
-| TERRAKUBE_TEMPLATE (*)           | Terrakube template name                            |
-| TERRAKUBE_ENDPOINT (*)           | Terrakbue api endpoint                             |
-| TERRAKUBE_ORGANIZATION (*)       | Terrakbue organization                             |
-| TERRAKUBE_BRANCH (*)             | Github Branch when running a job                   |
-| TERRAKUBE_SSH_KEY_NAME (*)       | ssh key name define in the terrakube organization to connect to private repositories  |
-| GITHUB_TOKEN (*)                 | Github Token                                       |
-| SHOW_OUTPUT (*)                  | Show terrakube logs inside PR comments             |
+| Variable                    | Usage                                              |
+| --------------------------- | -------------------------------------------------- |
+| TERRAKUBE_TOKEN (*)         | Terrakube Personal Access Token                    |
+| TERRAKUBE_TEMPLATE (*)      | Terrakube template name                            |
+| TERRAKUBE_ENDPOINT (*)      | Terrakbue api endpoint                             |
+| TERRAKUBE_ORGANIZATION (*)  | Terrakbue organization                             |
+| TERRAKUBE_BRANCH (*)        | Github Branch when running a job                   |
+| TERRAKUBE_SSH_KEY_NAME      | ssh key name define in the terrakube organization to connect to private repositories  |
+| GITHUB_TOKEN (*)            | Github Token                                       |
+| SHOW_OUTPUT (*)             | Show terrakube logs inside PR comments             |
 
 _(*) = required variable._
 
-## Terraform Version Configuration
+## Terraform Workspace Configuration
 
-Create a file called "terrakube.json" and include the terraform version that will be used for the job execution
+Create a file called "terrakube.json"; includes workspace name and the terraform version that will be used for the job execution.
 
 ```
 {
-	"terraform": "1.2.9"
+    "workspace": "workspaceA"
+    "terraform": "1.2.9"
 }
 ```
 

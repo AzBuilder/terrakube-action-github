@@ -92,7 +92,7 @@ typings/
 
 # OS metadata
 .DS_Store
-Thumbs.db
+Thumbs.dbr
 
 # Ignore built ts files
 __tests__/runner/*
@@ -101,3 +101,5 @@ lib/**/*
 package-lock.json
 
 sample/
+
+node_modules/
