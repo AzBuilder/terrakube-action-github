@@ -94,8 +94,9 @@ function run() {
                             if (templateId !== "") {
                                 core.info(`Using template id ${templateId}`);
                                 core.info(`Creating new job: `);
+                                core.info(`Andrew test :)`);
                                 const jobId = yield terrakubeClient.createJobId(organizationId, workspaceId, templateId);
-                                core.info(`JobId: ${jobId}`);
+                                core.info(`Andrew, JobId: ${jobId}`);
                                 yield checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId, workspaceFolder, githubActionInput.showOutput);
                             }
                             else {
