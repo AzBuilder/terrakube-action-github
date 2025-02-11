@@ -65,13 +65,15 @@ function run() {
                     const file = _c.value;
                     const terrakubeData = JSON.parse(yield (0, promises_1.readFile)(`${file}`, "utf8"));
                     const workspaceFolder = path_1.default.basename(path_1.default.dirname(file));
-                    core.info(`Folder ${workspaceFolder} change: ${terrakubeFolders.indexOf(workspaceFolder)}`);
+                    core.info(`Andrew Workspace Folder: ${workspaceFolder}`);
+                    core.info(`Terrakube Folders: ${terrakubeFolders}`);
+                    const isFolderChanged = terrakubeFolders.some(folder => workspaceFolder.startsWith(folder));
+                    core.info(`Folder ${workspaceFolder} change: ${isFolderChanged}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
                         ? terrakubeData.workspace : workspaceFolder;
                     //Folder with terrakube.json file change
-                    if (terrakubeFolders.indexOf(workspaceFolder) > -1) {
+                    if (isFolderChanged) {
                         core.startGroup(`Execute Workspace ${workspaceName}`);
-                        console.debug(`Processing: ${file}`);
                         core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
                         core.info(`Organization: ${githubActionInput.terrakubeOrganization}`);
                         core.info(`Workspace: ${workspaceName}`);
