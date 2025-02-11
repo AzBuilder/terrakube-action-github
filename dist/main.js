@@ -59,21 +59,18 @@ function run() {
             const patterns = ['**/terrakube.json'];
             const globber = yield glob.create(patterns.join('\n'));
             core.info(`Changed Directory: ${githubActionInput.terrakubeFolder}`);
-            const terrakubeFolders = githubActionInput.terrakubeFolder.split(" ");
             try {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
                     const file = _c.value;
                     const terrakubeData = JSON.parse(yield (0, promises_1.readFile)(`${file}`, "utf8"));
                     const workspaceFolder = path_1.default.basename(path_1.default.dirname(file));
-                    core.info(`Andrew Workspace Folder: ${workspaceFolder}`);
-                    core.info(`Terrakube Folders: ${terrakubeFolders}`);
-                    const isFolderChanged = terrakubeFolders.some(folder => workspaceFolder.startsWith(folder));
-                    core.info(`Folder ${workspaceFolder} change: ${isFolderChanged}`);
+                    core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
                         ? terrakubeData.workspace : workspaceFolder;
                     //Folder with terrakube.json file change
-                    if (isFolderChanged) {
+                    if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
                         core.startGroup(`Execute Workspace ${workspaceName}`);
+                        console.debug(`Processing: ${file}`);
                         core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
                         core.info(`Organization: ${githubActionInput.terrakubeOrganization}`);
                         core.info(`Workspace: ${workspaceName}`);
