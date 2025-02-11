@@ -62,7 +62,9 @@ function run() {
             try {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
                     const file = _c.value;
+                    core.info(`File ${file}`);
                     const terrakubeData = JSON.parse(yield (0, promises_1.readFile)(`${file}`, "utf8"));
+                    core.info(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
                     const workspaceFolder = path_1.default.basename(path_1.default.dirname(file));
                     core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
