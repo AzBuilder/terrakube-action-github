@@ -164,6 +164,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
             //const commentBody = `Logs from step: ${jobSteps[index].attributes.name} \`\`\`\n${convert.toHtml(body)}\n\`\`\` `
             if (show_output) {
                 body = body.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+                body = body.replace(/^(\s*)\+/gm, '+$1');
                 const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`diff\n${body}\n\`\`\` `;
                 finalComment = finalComment.concat(commentBody);
             }
