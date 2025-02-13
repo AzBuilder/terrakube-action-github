@@ -59,6 +59,7 @@ function run() {
             const patterns = ['**/terrakube.json'];
             const globber = yield glob.create(patterns.join('\n'));
             core.info(`Changed Directory: ${githubActionInput.terrakubeFolder}`);
+            core.info(`Terrakube Folders List: ${githubActionInput.terrakubeFolder.split(" ")}`);
             try {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
                     const file = _c.value;
@@ -67,14 +68,13 @@ function run() {
                     core.info(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
                     core.info(`TerrakubeFolder: ${githubActionInput.terrakubeFolder}`);
 
-                    const workspaceFolder = file.replace(/^\/home\/runner\/_work\/[^\/]+\/[^\/]+\//, '').replace(/\/terrakube\.json$/, '');
-                    core.info(`workspaceFolder: ${workspaceFolder}`);
-                    
-                    core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`);
+                    const workspaceFolder = path_1.default.basename(path_1.default.dirname(file));
+                    const isFolderChanged = githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1;
+                    core.info(`Folder ${workspaceFolder} change: ${isFolderChanged}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
-                        ? terrakubeData.workspace : workspaceFolder.split('/').pop();
+                        ? terrakubeData.workspace : workspaceFolder;
                     //Folder with terrakube.json file change
-                    if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
+                    if (isFolderChanged) {
                         core.startGroup(`Execute Workspace ${workspaceName}`);
                         console.debug(`Processing: ${file}`);
                         core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
