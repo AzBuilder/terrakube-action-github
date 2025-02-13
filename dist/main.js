@@ -70,7 +70,7 @@ function run() {
 
                     const workspaceFolder = path_1.default.basename(path_1.default.dirname(file));
                     const isFolderChanged = githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1;
-                    core.info(`Folder ${workspaceFolder} change: ${isFolderChanged}`);
+                    core.info(`Folder ${workspaceFolder} was_changed: ${isFolderChanged}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
                         ? terrakubeData.workspace : workspaceFolder;
                     //Folder with terrakube.json file change
@@ -164,7 +164,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
             //const commentBody = `Logs from step: ${jobSteps[index].attributes.name} \`\`\`\n${convert.toHtml(body)}\n\`\`\` `
             if (show_output) {
                 body = body.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-                const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`\n${body}\n\`\`\` `;
+                const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`diff\n${body}\n\`\`\` `;
                 finalComment = finalComment.concat(commentBody);
             }
         }
