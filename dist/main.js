@@ -67,7 +67,7 @@ function run() {
                     core.info(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
                     core.info(`TerrakubeFolder: ${githubActionInput.terrakubeFolder}`);
 
-                    const filePath = path_1
+                    const filePath = file
                     const cleanedPath = filePath.replace(/^\/home\/runner\/_work\/[^\/]+\/[^\/]+\//, '').replace(/\/terrakube\.json$/, '');
                     core.log(`Cleaned path: ${cleanedPath}`); // Output: environments/terrakube-testing
                     
