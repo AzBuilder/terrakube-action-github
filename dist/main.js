@@ -59,7 +59,6 @@ function run() {
             const patterns = ['**/terrakube.json'];
             const globber = yield glob.create(patterns.join('\n'));
             core.info(`Changed Directory: ${githubActionInput.terrakubeFolder}`);
-            core.info(`Terrakube Folders List: ${githubActionInput.terrakubeFolder.split(" ")}`);
             try {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
                     const file = _c.value;
