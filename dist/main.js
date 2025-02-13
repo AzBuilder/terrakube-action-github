@@ -69,9 +69,9 @@ function run() {
 
                     const filePath = file
                     const cleanedPath = filePath.replace(/^\/home\/runner\/_work\/[^\/]+\/[^\/]+\//, '').replace(/\/terrakube\.json$/, '');
-                    core.log(`Cleaned path: ${cleanedPath}`); // Output: environments/terrakube-testing
+                    core.info(`Cleaned path: ${cleanedPath}`); // Output: environments/terrakube-testing
                     
-                    core.log(`Path_1: ${path_1}`)
+                    core.info(`Path_1: ${path_1}`)
                     const workspaceFolder = path_1.default.basename(path_1.default.dirname(file));
                     core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
