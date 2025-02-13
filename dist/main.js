@@ -68,7 +68,7 @@ function run() {
                     core.info(`TerrakubeFolder: ${githubActionInput.terrakubeFolder}`);
 
                     const workspaceFolder = file.replace(/^\/home\/runner\/_work\/[^\/]+\/[^\/]+\//, '').replace(/\/terrakube\.json$/, '');
-                    core.info(`workspaceFolder: ${workspaceFolder}`); // Output: environments/terrakube-testing
+                    core.info(`workspaceFolder: ${workspaceFolder}`);
                     
                     core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
