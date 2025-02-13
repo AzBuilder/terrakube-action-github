@@ -72,7 +72,7 @@ function run() {
                     
                     core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
-                        ? terrakubeData.workspace : workspaceFolder;
+                        ? terrakubeData.workspace : workspaceFolder.split('/').pop();
                     //Folder with terrakube.json file change
                     if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
                         core.startGroup(`Execute Workspace ${workspaceName}`);
