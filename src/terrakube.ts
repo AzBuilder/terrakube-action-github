@@ -9,7 +9,7 @@ export class TerrakubeClient {
     private gitHubActionInput: GitHubActionInput;
 
     constructor(gitHubActionInput: GitHubActionInput) {
-        this.httpClient = new httpm.HttpClient("TerrakubeActionGithub");
+        this.httpClient = new httpm.HttpClient("TerrakubeClient", [], { ignoreSslError: gitHubActionInput.ignoreSslError });
         this.gitHubActionInput = gitHubActionInput;
         this.authenticationToken = 'empty'
 

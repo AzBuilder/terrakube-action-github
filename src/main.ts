@@ -21,13 +21,13 @@ async function run(): Promise<void> {
 
       const workspaceFolder = path.basename(path.dirname(file))
       core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`)
-
       const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
         ? terrakubeData.workspace : workspaceFolder
 
+
       //Folder with terrakube.json file change
       if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
-        core.startGroup(`Execute Workspace ${workspaceName}`)
+        core.startGroup(`Execute Workspace ${workspaceName}`);
 
         console.debug(`Processing: ${file}`)
 

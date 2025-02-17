@@ -63,14 +63,12 @@ function run() {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
                     const file = _c.value;
                     const terrakubeData = JSON.parse(yield (0, promises_1.readFile)(`${file}`, "utf8"));
-
                     const workspaceFolder = path_1.default.basename(path_1.default.dirname(file));
-                    const isFolderChanged = githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1;
-                    core.info(`Folder ${workspaceFolder} was_changed: ${isFolderChanged}`);
+                    core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`);
                     const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
                         ? terrakubeData.workspace : workspaceFolder;
                     //Folder with terrakube.json file change
-                    if (isFolderChanged) {
+                    if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
                         core.startGroup(`Execute Workspace ${workspaceName}`);
                         console.debug(`Processing: ${file}`);
                         core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`);
@@ -144,15 +142,13 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
         }
         core.info(`${jobResponse}`);
         core.info(`${JSON.stringify(jobResponseJson.included)}`);
-        const httpClient = terrakubeClient.httpClient;
+        const httpClient = new httpm.HttpClient();
         const jobSteps = jobResponseJson.included;
         core.info(`${Object.keys(jobSteps).length}`);
-        let finalComment = `## Workspace: \`${workspaceFolder}\` Status: \`${jobResponseJson.data.attributes.status.toUpperCase()}\` \n`;
+        let finalComment = `## Workspace: ${workspaceFolder} Status: ${jobResponseJson.data.attributes.status.toUpperCase()} \n`;
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
-            const response = yield httpClient.get(`${jobSteps[index].attributes.output}`, {
-                'Authorization': `Bearer ${terrakubeClient.authenticationToken}`
-            });
+            const response = yield httpClient.get(`${jobSteps[index].attributes.output}`);
             let body = yield response.readBody();
             core.info(body);
             core.endGroup();
@@ -160,8 +156,7 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
             //const commentBody = `Logs from step: ${jobSteps[index].attributes.name} \`\`\`\n${convert.toHtml(body)}\n\`\`\` `
             if (show_output) {
                 body = body.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-                body = body.replace(/^(\s*)\+/gm, '+$1');
-                const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`diff\n${body}\n\`\`\` `;
+                const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`\n${body}\n\`\`\` `;
                 finalComment = finalComment.concat(commentBody);
             }
         }

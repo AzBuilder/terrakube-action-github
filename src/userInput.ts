@@ -51,7 +51,7 @@ export async function getActionInput(): Promise<any> {
 
   const githubToken: string = core.getInput('github_token', { required: true })
 
-  const ignoreSslError = core.getInput('ignore_ssl_error', { required: true });
+  const ignoreSslError = core.getBooleanInput('ignore_ssl_error', { required: true });
   core.debug(`Ignore SSL Error: ${terrakubeOrganization}`);
 
   const terrakubeActionInput: GitHubActionInput = {
