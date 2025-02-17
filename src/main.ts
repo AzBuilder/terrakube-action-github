@@ -109,7 +109,7 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
 
   core.info(`${jobResponse}`)
   core.info(`${JSON.stringify(jobResponseJson.included)}`)
-  const httpClient = new httpm.HttpClient();
+  const httpClient = terrakubeClient.getHttpClient();
   const jobSteps = jobResponseJson.included
   core.info(`${Object.keys(jobSteps).length}`)
 
