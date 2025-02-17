@@ -19,6 +19,14 @@ export class TerrakubeClient {
         core.info(`Template: ${gitHubActionInput.terrakubeTemplate}`)
     }
 
+    getHttpClient(): httpm.HttpClient{
+        return this.httpClient;
+    }
+
+    getAuthToken(): string {
+        return this.authenticationToken;
+    }
+
     async getOrganizationId(organizationName: string): Promise<any> {
         if (this.authenticationToken === 'empty') {
             this.authenticationToken = this.gitHubActionInput.token

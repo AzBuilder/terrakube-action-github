@@ -118,7 +118,9 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
 
     core.startGroup(`Running ${jobSteps[index].attributes.name}`)
 
-    const response: httpm.HttpClientResponse = await httpClient.get(`${jobSteps[index].attributes.output}`)
+    const response: httpm.HttpClientResponse = await httpClient.get(`${jobSteps[index].attributes.output}`, {
+      'Authorization': `Bearer ${terrakubeClient.getAuthToken()}`
+  });
 
     let body: string = await response.readBody()
     core.info(body)

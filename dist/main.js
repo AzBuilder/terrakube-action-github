@@ -44,7 +44,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
 const glob = __importStar(require("@actions/glob"));
-const httpm = __importStar(require("@actions/http-client"));
 const github = __importStar(require("@actions/github"));
 const userInput_1 = require("./userInput");
 const terrakube_1 = require("./terrakube");
@@ -143,13 +142,15 @@ function checkTerrakubeLogs(terrakubeClient, githubToken, organizationId, jobId,
         }
         core.info(`${jobResponse}`);
         core.info(`${JSON.stringify(jobResponseJson.included)}`);
-        const httpClient = new httpm.HttpClient();
+        const httpClient = terrakubeClient.getHttpClient();
         const jobSteps = jobResponseJson.included;
         core.info(`${Object.keys(jobSteps).length}`);
         let finalComment = `## Workspace: \`${workspaceFolder}\` Status: \`${jobResponseJson.data.attributes.status.toUpperCase()}\` \n`;
         for (let index = 0; index < Object.keys(jobSteps).length; index++) {
             core.startGroup(`Running ${jobSteps[index].attributes.name}`);
-            const response = yield httpClient.get(`${jobSteps[index].attributes.output}`);
+            const response = yield httpClient.get(`${jobSteps[index].attributes.output}`, {
+                'Authorization': `Bearer ${terrakubeClient.getAuthToken()}`
+            });
             let body = yield response.readBody();
             core.info(body);
             core.endGroup();
