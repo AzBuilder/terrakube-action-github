@@ -20,14 +20,15 @@ async function run(): Promise<void> {
       const terrakubeData = JSON.parse(await readFile(`${file}`, "utf8"))
 
       const workspaceFolder = path.basename(path.dirname(file))
-      core.info(`Folder ${workspaceFolder} change: ${githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder)}`)
-
+      const isFolderChanged = githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1;
+      core.info(`Folder ${workspaceFolder} was_changed: ${isFolderChanged}`);
       const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
-        ? terrakubeData.workspace : workspaceFolder
+          ? terrakubeData.workspace : workspaceFolder;
+
 
       //Folder with terrakube.json file change
-      if (githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1) {
-        core.startGroup(`Execute Workspace ${workspaceName}`)
+      if (isFolderChanged) {
+        core.startGroup(`Execute Workspace ${workspaceName}`);
 
         console.debug(`Processing: ${file}`)
 
@@ -108,16 +109,18 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
 
   core.info(`${jobResponse}`)
   core.info(`${JSON.stringify(jobResponseJson.included)}`)
-  const httpClient = new httpm.HttpClient();
+  const httpClient = terrakubeClient.getHttpClient();
   const jobSteps = jobResponseJson.included
   core.info(`${Object.keys(jobSteps).length}`)
 
-  let finalComment = `## Workspace: ${workspaceFolder} Status: ${jobResponseJson.data.attributes.status.toUpperCase()} \n`
+  let finalComment = `## Workspace: \`${workspaceFolder}\` Status: \`${jobResponseJson.data.attributes.status.toUpperCase()}\` \n`;
   for (let index = 0; index < Object.keys(jobSteps).length; index++) {
 
     core.startGroup(`Running ${jobSteps[index].attributes.name}`)
 
-    const response: httpm.HttpClientResponse = await httpClient.get(`${jobSteps[index].attributes.output}`)
+    const response: httpm.HttpClientResponse = await httpClient.get(`${jobSteps[index].attributes.output}`, {
+      'Authorization': `Bearer ${terrakubeClient.getAuthToken()}`
+  });
 
     let body: string = await response.readBody()
     core.info(body)
@@ -128,7 +131,8 @@ async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken:
 
     if (show_output) {
       body = body.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-      const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`\n${body}\n\`\`\` `
+      body = body.replace(/^(\s*)\+/gm, '+$1');
+      const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`diff\n${body}\n\`\`\` `;
       finalComment = finalComment.concat(commentBody)
     }
 

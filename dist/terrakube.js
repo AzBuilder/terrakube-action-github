@@ -45,6 +45,12 @@ class TerrakubeClient {
         core.info(`Repository: ${gitHubActionInput.terrakubeRepository}`);
         core.info(`Template: ${gitHubActionInput.terrakubeTemplate}`);
     }
+    getHttpClient() {
+        return this.httpClient;
+    }
+    getAuthToken() {
+        return this.authenticationToken;
+    }
     getOrganizationId(organizationName) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.authenticationToken === 'empty') {

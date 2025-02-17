@@ -9,7 +9,7 @@ export class TerrakubeClient {
     private gitHubActionInput: GitHubActionInput;
 
     constructor(gitHubActionInput: GitHubActionInput) {
-        this.httpClient = new httpm.HttpClient("TerrakubeActionGithub");
+        this.httpClient = new httpm.HttpClient("TerrakubeClient", [], { ignoreSslError: gitHubActionInput.ignoreSslError });
         this.gitHubActionInput = gitHubActionInput;
         this.authenticationToken = 'empty'
 
@@ -17,6 +17,14 @@ export class TerrakubeClient {
         core.info(`Endpoint: ${gitHubActionInput.terrakubeEndpoint}`)
         core.info(`Repository: ${gitHubActionInput.terrakubeRepository}`)
         core.info(`Template: ${gitHubActionInput.terrakubeTemplate}`)
+    }
+
+    getHttpClient(): httpm.HttpClient{
+        return this.httpClient;
+    }
+
+    getAuthToken(): string {
+        return this.authenticationToken;
     }
 
     async getOrganizationId(organizationName: string): Promise<any> {
