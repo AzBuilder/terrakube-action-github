@@ -63,7 +63,7 @@ function getActionInput() {
         core.debug(`Show Output Job: ${terrakubeOrganization}`);
         const githubToken = core.getInput('github_token', { required: true });
         const ignoreSslError = core.getBooleanInput('ignore_ssl_error', { required: true });
-        core.debug(`Ignore SSL Error: ${terrakubeOrganization}`);
+        core.debug(`Ignore SSL Error: ${ignoreSslError}`);
         const terrakubeActionInput = {
             token: terrakubeToken,
             terrakubeEndpoint: terrakubeEndpoint,
