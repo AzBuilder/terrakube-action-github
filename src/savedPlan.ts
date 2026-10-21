@@ -1,37 +1,61 @@
 import {parse} from 'yaml'
 import {Document, Resource} from './terrakube'
 
-// Staged operations use a dedicated template administered in Terrakube.
-export function savedPlanTemplate(value: unknown): number[] {
+export interface SavedPlanTemplate {
+  plan: number
+  approval: number
+  apply: number
+  steps: number[]
+}
+
+// Hooks may surround the plan and apply, but the approval boundary stays unique.
+export function savedPlanTemplate(value: unknown): SavedPlanTemplate {
   if (typeof value !== 'string' || !value || value.length > 1_000_000)
     throw new Error('Saved-plan template is missing or too large')
-  let flow: Record<string, unknown>[]
   try {
     const parsed = parse(Buffer.from(value, 'base64').toString('utf8'), {
       maxAliasCount: 0
     })
-    flow = parsed?.flow
-    if (!Array.isArray(flow) || flow.length !== 3) throw new Error()
+    const flow: Record<string, unknown>[] = parsed?.flow
+    if (!Array.isArray(flow) || flow.length < 3) throw new Error()
     if (
       flow.some(
         (step, index) =>
           !step ||
-          step.type !==
-            ['terraformPlan', 'approval', 'terraformApply'][index] ||
+          typeof step.type !== 'string' ||
+          !step.type ||
+          ['terraformDestroy', 'terraformPlanDestroy'].includes(step.type) ||
           !Number.isSafeInteger(step.step) ||
           Number(step.step) < 1 ||
           step.ignoreError === true ||
           (index > 0 && Number(step.step) <= Number(flow[index - 1]?.step))
-      ) ||
-      flow[2]?.requireSavedPlan !== true
+      )
     )
       throw new Error()
+    const required = ['terraformPlan', 'approval', 'terraformApply'].map(
+      type => {
+        const matches = flow.filter(step => step.type === type)
+        if (matches.length !== 1) throw new Error()
+        return matches[0]!
+      }
+    )
+    const [plan, approval, apply] = required.map(step => Number(step.step)) as [
+      number,
+      number,
+      number
+    ]
+    if (
+      plan >= approval ||
+      approval >= apply ||
+      required[2]!.requireSavedPlan !== true
+    )
+      throw new Error()
+    return {plan, approval, apply, steps: flow.map(step => Number(step.step))}
   } catch {
     throw new Error(
-      'Staged execution requires plan, approval and apply steps in order, with requireSavedPlan: true on apply'
+      'Staged execution requires one plan, approval and apply in order, with requireSavedPlan: true on apply and no ignored errors or destroy steps'
     )
   }
-  return flow.map(step => Number(step.step))
 }
 
 export function verifySavedRun(
@@ -52,17 +76,38 @@ export function verifySavedRun(
     throw new Error('Saved run revision differs from TERRAKUBE_COMMIT')
   if (document.data.attributes.templateReference !== template.id)
     throw new Error('Saved run does not use the requested template')
-  const numbers = savedPlanTemplate(template.attributes.tcl)
+  const contract = savedPlanTemplate(template.attributes.tcl)
   const steps = document.included || []
+  const numbers = new Set(steps.map(step => step.attributes.stepNumber))
   if (
-    steps.length !== 3 ||
-    numbers.some(
-      number =>
-        steps.filter(step => step.attributes.stepNumber === number).length !== 1
-    )
+    steps.length !== contract.steps.length ||
+    numbers.size !== contract.steps.length ||
+    contract.steps.some(number => !numbers.has(number))
   )
     throw new Error('Saved run is missing the expected step results')
-  const plan = steps.find(step => step.attributes.stepNumber === numbers[0])
+  const plan = steps.find(step => step.attributes.stepNumber === contract.plan)
   if (!['completed', 'noChanges'].includes(String(plan?.attributes.status)))
     throw new Error('Saved run has no successful plan step')
+}
+
+export function verifyApprovalGate(
+  document: Document,
+  contract: SavedPlanTemplate
+): void {
+  const steps = document.included || []
+  if (
+    document.data.attributes.status !== 'waitingApproval' ||
+    steps.some(step => {
+      const number = Number(step.attributes.stepNumber)
+      const status = String(step.attributes.status)
+      if (number < contract.approval)
+        return !['completed', 'noChanges'].includes(status)
+      if (number === contract.approval)
+        return !['pending', 'waitingApproval'].includes(status)
+      return status !== 'pending'
+    })
+  )
+    throw new Error(
+      'Saved run is not paused at its approval gate with successful preceding steps'
+    )
 }

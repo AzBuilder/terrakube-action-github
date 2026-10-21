@@ -15,7 +15,7 @@ function setup(overrides = {}) {
     (url, options) => fetch(url, {...options, dispatcher: agent}),
     async () => {}
   )
-  const pool = agent.get(settings.endpoint)
+  const pool = agent.get(new URL(settings.endpoint).origin)
   return {
     client,
     pool,
@@ -179,19 +179,21 @@ test('polling respects an already-exhausted deadline', async () => {
     await close()
   }
 })
-test('refuses external log URLs and does not follow credential-bearing redirects', async () => {
+test('rejects non-log URLs and does not follow credential-bearing redirects', async () => {
   const {client, pool, close} = setup()
   pool
-    .intercept({path: '/logs'})
+    .intercept({path: '/tfoutput/v1/organization/org/job/1/step/step-1'})
     .reply(302, '', {headers: {location: 'https://untrusted.example/log'}})
     .times(3)
   try {
     await assert.rejects(
       client.logs('https://untrusted.example/log'),
-      /external/
+      /Invalid Terrakube log path/
     )
     await assert.rejects(
-      client.logs('https://terrakube.example/logs'),
+      client.logs(
+        'https://terrakube.example/tfoutput/v1/organization/org/job/1/step/step-1'
+      ),
       /connection failed/
     )
   } finally {
@@ -236,13 +238,13 @@ test('OIDC renewal also applies to log requests', async () => {
   )
   agent
     .get(settings.endpoint)
-    .intercept({path: '/logs'})
+    .intercept({path: '/tfoutput/v1/organization/org/job/1/step/step-1'})
     .reply(200, 'log')
     .times(2)
   try {
-    await client.logs('/logs')
+    await client.logs('/tfoutput/v1/organization/org/job/1/step/step-1')
     now += 241_000
-    await client.logs('/logs')
+    await client.logs('/tfoutput/v1/organization/org/job/1/step/step-1')
     assert.equal(issued, 2)
   } finally {
     await client.close()
@@ -252,21 +254,31 @@ test('OIDC renewal also applies to log requests', async () => {
 
 test('raw logs redact known PAT and GitHub credentials', async () => {
   const {client, pool, close} = setup({githubToken: 'github-test-token'})
-  pool.intercept({path: '/logs'}).reply(200, 'test-token github-test-token')
+  pool
+    .intercept({path: '/tfoutput/v1/organization/org/job/1/step/step-1'})
+    .reply(200, 'test-token github-test-token')
   try {
-    assert.equal(await client.logs('/logs'), '*** ***')
+    assert.equal(
+      await client.logs('/tfoutput/v1/organization/org/job/1/step/step-1'),
+      '*** ***'
+    )
   } finally {
     await close()
   }
 })
 test('oversized log responses are truncated and oversized API documents fail', async () => {
   const {client, pool, close} = setup()
-  pool.intercept({path: '/logs'}).reply(200, 'x'.repeat(200_000))
+  pool
+    .intercept({path: '/tfoutput/v1/organization/org/job/1/step/step-1'})
+    .reply(200, 'x'.repeat(200_000))
   pool
     .intercept({path: '/api/v1/organization/org/job/job-1?include=step'})
     .reply(200, 'x'.repeat(8_000_001))
   try {
-    assert.match(await client.logs('/logs'), /Log truncated/)
+    assert.match(
+      await client.logs('/tfoutput/v1/organization/org/job/1/step/step-1'),
+      /Log truncated/
+    )
     await assert.rejects(
       client.job('org', 'job-1', Date.now() + 1000),
       /exceeded 8 MB/
@@ -294,6 +306,104 @@ test('context requests use JSON while job requests use JSON:API', async () => {
       (await client.job('org', 'job-1', Date.now() + 1000)).data.id,
       'job-1'
     )
+    agent.assertNoPendingInterceptors()
+  } finally {
+    await close()
+  }
+})
+
+for (const endpoint of [
+  'https://terrakube.example',
+  'https://terrakube.example/gateway'
+]) {
+  test(`canonical log URLs are routed through ${endpoint} with the correct path and media type`, async () => {
+    const {client, pool, close, agent} = setup({endpoint})
+    const route = '/tfoutput/v1/organization/org/job/42/step/step-1'
+    const prefix = new URL(endpoint).pathname.replace(/\/$/, '')
+    const outputs = [
+      `https://public.example${route}?download=1`,
+      `https://public.example/another-prefix${route}?download=1`,
+      `${endpoint}${route}?download=1`,
+      `${route}?download=1`,
+      `${route.slice(1)}?download=1`
+    ]
+    pool
+      .intercept({
+        path: `${prefix}${route}?download=1`,
+        headers: {
+          authorization: 'Bearer test-token',
+          accept: 'application/octet-stream'
+        }
+      })
+      .reply(200, 'saved output')
+      .times(outputs.length)
+    try {
+      for (const output of outputs)
+        assert.equal(await client.logs(output), 'saved output')
+      agent.assertNoPendingInterceptors()
+    } finally {
+      await close()
+    }
+  })
+}
+
+test('log URL parsing rejects non-log routes, credentials and traversal before making a request', async () => {
+  const {client, close} = setup({endpoint: 'https://terrakube.example/gateway'})
+  const route = '/tfoutput/v1/organization/org/job/42/step/step-1'
+  try {
+    for (const output of [
+      'https://public.example/api/v1/organization',
+      `https://user:secret@public.example${route}`,
+      `file:///tmp${route}`,
+      `${route}/../../other`,
+      `${route}%2f..%2fother`,
+      `${route}/stream`,
+      `${route}#fragment`
+    ])
+      await assert.rejects(client.logs(output), /Invalid Terrakube log/)
+  } finally {
+    await close()
+  }
+})
+
+test('workspace creation uses a durable branch while jobs execute the requested feature branch', async () => {
+  const {client, pool, close, agent} = setup({
+    branch: 'feature/pr',
+    workspaceBranch: 'trunk'
+  })
+  pool
+    .intercept({
+      method: 'POST',
+      path: '/api/v1/organization/org/workspace',
+      body: (raw: string) => {
+        assert.equal(JSON.parse(raw).data.attributes.branch, 'trunk')
+        return true
+      }
+    })
+    .reply(201, {data: item('workspace', 'ws')})
+  pool
+    .intercept({
+      method: 'POST',
+      path: '/api/v1/organization/org/job',
+      body: (raw: string) => {
+        assert.equal(
+          JSON.parse(raw).data.attributes.overrideBranch,
+          'feature/pr'
+        )
+        assert.equal(JSON.parse(raw).data.attributes.commitId, sha)
+        return true
+      }
+    })
+    .reply(201, {data: item('job', '42')})
+  try {
+    await client.createWorkspace(
+      'org',
+      'example',
+      'infra',
+      '1.14.0',
+      'terraform'
+    )
+    assert.equal(await client.createJob('org', 'ws', 'template'), '42')
     agent.assertNoPendingInterceptors()
   } finally {
     await close()

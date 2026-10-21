@@ -1,4 +1,5 @@
 import * as core from '@actions/core'
+import {setTimeout as delay} from 'node:timers/promises'
 import {Config} from './userInput'
 
 export class Credentials {
@@ -9,7 +10,9 @@ export class Credentials {
   constructor(
     private readonly config: Pick<Config, 'auth' | 'token' | 'audience'>,
     private readonly getIDToken = core.getIDToken,
-    private readonly now = Date.now
+    private readonly now = Date.now,
+    private readonly pause = (ms: number, signal?: AbortSignal) =>
+      delay(ms, undefined, {signal})
   ) {
     if (config.token) {
       core.setSecret(config.token)
@@ -22,14 +25,26 @@ export class Credentials {
     return text
   }
 
-  async get(): Promise<string> {
+  async get(signal?: AbortSignal): Promise<string> {
+    signal?.throwIfAborted()
     if (this.config.auth === 'token') return this.config.token
     if (this.token && this.now() < this.expiresAt - 60_000) return this.token
     // JWT claims are used only to schedule renewal. Terrakube verifies the signature and claims.
-    let token: string
-    try {
-      token = await this.getIDToken(this.config.audience)
-    } catch {
+    let token: string | undefined
+    for (let attempt = 0; attempt < 3; attempt++) {
+      signal?.throwIfAborted()
+      try {
+        token = await this.getIDToken(this.config.audience)
+        signal?.throwIfAborted()
+        break
+      } catch {
+        signal?.throwIfAborted()
+        if (attempt < 2) await this.pause(1000 * 2 ** attempt, signal)
+      }
+    }
+    if (token === undefined) {
+      // Keep polling through a failed proactive renewal, allowing for clock skew.
+      if (this.token && this.now() < this.expiresAt - 10_000) return this.token
       throw new Error(
         'Could not obtain a GitHub OIDC token; check id-token: write permissions and issuer availability'
       )

@@ -32,6 +32,7 @@ async function execute(
     status?: string
     revision?: string
     oidc?: boolean
+    oidcDisconnect?: boolean
     roots?: string[]
     trusted?: boolean
     apiError?: boolean
@@ -57,6 +58,10 @@ async function execute(
       try {
         if (url.pathname === '/oidc') {
           tokenRequests++
+          if (options.oidcDisconnect && tokenRequests === 1) {
+            request.socket.destroy()
+            return
+          }
           assert.equal(
             request.headers.authorization,
             'Bearer oidc-request-token'
@@ -124,7 +129,7 @@ async function execute(
           send(document)
           return
         }
-        if (url.pathname.includes('/logs')) {
+        if (url.pathname.startsWith('/tfoutput/v1/')) {
           logReads++
           send('raw-private-log')
           return
@@ -271,4 +276,11 @@ test('standalone action rejects untrusted TLS certificates and unsuccessful API 
       /private-server-details/
     )
   }
+})
+
+test('standalone OIDC authentication recovers from a dropped connection without duplicate submissions', async () => {
+  const result = await execute({oidc: true, oidcDisconnect: true})
+  assert.equal(result.code, 0)
+  assert.equal(result.tokenRequests, 2)
+  assert.equal(result.submissions, 1)
 })

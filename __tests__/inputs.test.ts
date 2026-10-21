@@ -89,3 +89,34 @@ test('staged operations require explicit identity and apply/discard require a sa
   })
   assert.equal(getActionInput().operation, 'apply')
 })
+
+test('new workspace branch comes from the repository default, PR base, or explicit input', async () => {
+  const {context} = await import('@actions/github')
+  const previous = context.payload
+  try {
+    inputs({TERRAKUBE_BRANCH: 'feature/pr'})
+    context.payload = {
+      repository: {
+        name: 'repo',
+        owner: {login: 'example', name: 'example'},
+        default_branch: 'trunk'
+      },
+      pull_request: {
+        number: 1,
+        base: {ref: 'release'},
+        head: {ref: 'feature/pr'}
+      }
+    }
+    assert.equal(getActionInput().branch, 'feature/pr')
+    assert.equal(getActionInput().workspaceBranch, 'trunk')
+    context.payload = {pull_request: {number: 1, base: {ref: 'release'}}}
+    assert.equal(getActionInput().workspaceBranch, 'release')
+    inputs({TERRAKUBE_WORKSPACE_BRANCH: 'stable'})
+    assert.equal(getActionInput().workspaceBranch, 'stable')
+    inputs()
+    context.payload = {}
+    assert.equal(getActionInput().workspaceBranch, 'main')
+  } finally {
+    context.payload = previous
+  }
+})

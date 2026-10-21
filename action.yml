@@ -26,7 +26,9 @@ inputs:
   TERRAKUBE_OIDC_AUDIENCE:
     description: Audience registered in the Terrakube federated credential; required for oidc
   TERRAKUBE_BRANCH:
-    description: Repository branch (defaults to PR head branch or current ref)
+    description: Branch to execute (defaults to PR head branch or current ref)
+  TERRAKUBE_WORKSPACE_BRANCH:
+    description: Default branch for newly created workspaces (repository default, PR base, or main)
   TERRAKUBE_COMMIT:
     description: Full immutable commit SHA; leave empty only for branch-tip execution
     default: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -67,7 +69,7 @@ inputs:
     default: 'false'
 outputs:
   HAS_CHANGES:
-    description: true for a staged plan ready to apply; false for a no-change plan; otherwise empty
+    description: For TERRAKUBE_OPERATION plan, true when ready to apply; false for noChanges; empty for completed standard runs or unknown changes
   JOB_ID:
     description: Submitted job ID for a single job; empty for multiple jobs
   JOB_IDS:

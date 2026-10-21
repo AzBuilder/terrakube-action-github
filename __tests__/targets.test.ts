@@ -226,3 +226,32 @@ test('push discovery uses actual Git history and fails clearly when history is m
     await rm(checkout, {recursive: true, force: true})
   }
 })
+
+test('workspace repository identity matches case and clone protocols but still rejects other hosts and repositories', () => {
+  const target = {name: 'example', root: 'infra', iacType: 'terraform' as const}
+  for (const source of [
+    'git@GITHUB.COM:Terrakube-IO/Infra.git',
+    'SSH://git@GITHUB.COM/Terrakube-IO/Infra.GIT/',
+    'HTTPS://GITHUB.COM/Terrakube-IO/Infra.git'
+  ]) {
+    validateWorkspace(
+      item('workspace', 'ws', {source, folder: 'infra'}),
+      target,
+      'https://github.com/terrakube-io/infra.git'
+    )
+  }
+  for (const source of [
+    'https://other.example/terrakube-io/infra.git',
+    'https://github.com/terrakube-io/other.git'
+  ]) {
+    assert.throws(
+      () =>
+        validateWorkspace(
+          item('workspace', 'ws', {source, folder: 'infra'}),
+          target,
+          'https://github.com/terrakube-io/infra.git'
+        ),
+      /repository does not match/
+    )
+  }
+})

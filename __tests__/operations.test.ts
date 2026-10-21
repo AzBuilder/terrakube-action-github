@@ -38,7 +38,7 @@ function savedJob(status = 'waitingApproval') {
   return document
 }
 
-function setup() {
+function setup(templateTcl = tcl) {
   let document = savedJob()
   const transitions: string[] = []
   const client = {
@@ -46,7 +46,7 @@ function setup() {
       type === 'organization'
         ? item(type, 'org')
         : type === 'template'
-          ? item(type, 'template', {name: 'Plan and apply', tcl})
+          ? item(type, 'template', {name: 'Plan and apply', tcl: templateTcl})
           : item(type, 'workspace', {
               name: 'example',
               source: config().repository,
@@ -239,4 +239,123 @@ test('a resumed run has a bounded polling deadline', async () => {
   )
   assert.equal(result?.status, 'timedOut')
   assert.equal(result?.jobId, '42')
+})
+
+const hookTcl = Buffer.from(
+  `flow:
+  - type: customScripts
+    step: 50
+  - type: terraformPlan
+    step: 100
+  - type: policyEvaluation
+    step: 150
+  - type: approval
+    step: 200
+  - type: customScripts
+    step: 250
+  - type: terraformApply
+    step: 300
+    requireSavedPlan: true
+  - type: customScripts
+    step: 350
+`
+).toString('base64')
+
+function hookJob() {
+  const document = savedJob()
+  document.included = [50, 100, 150, 200, 250, 300, 350].map(number =>
+    item('step', `step-${number}`, {
+      stepNumber: number,
+      status: number < 200 ? 'completed' : 'pending'
+    })
+  )
+  return document
+}
+
+test('staged templates allow scanning, policy and notification hooks around the approval boundary', async () => {
+  assert.deepEqual(savedPlanTemplate(hookTcl), {
+    plan: 100,
+    approval: 200,
+    apply: 300,
+    steps: [50, 100, 150, 200, 250, 300, 350]
+  })
+  const {run, setDocument, transitions, client} = setup(hookTcl)
+  setDocument(hookJob())
+  const [plan] = await runJobs(
+    config({operation: 'plan'}),
+    targets,
+    {
+      ...client,
+      createWorkspace: async () => {
+        throw new Error('unexpected creation')
+      },
+      createJob: async () => '42'
+    },
+    () => {},
+    async () => {}
+  )
+  assert.equal(plan?.status, 'planned')
+  client.transitionJob = async (_org, _id, status) => {
+    transitions.push(status)
+    const complete = hookJob()
+    complete.data.attributes.status = 'completed'
+    complete.included!.forEach(step => {
+      step.attributes.status = 'completed'
+    })
+    setDocument(complete)
+  }
+  assert.equal((await run())[0]?.status, 'completed')
+  assert.deepEqual(transitions, ['approved'])
+})
+
+test('hooks cannot bypass policy success or start after the gate before approval', async () => {
+  for (const [number, status] of [
+    [150, 'failed'],
+    [150, 'pending'],
+    [150, 'NeverExecuted'],
+    [250, 'running'],
+    [350, 'completed']
+  ] as const) {
+    const {run, setDocument, transitions} = setup(hookTcl)
+    const document = hookJob()
+    document.included!.find(
+      step => step.attributes.stepNumber === number
+    )!.attributes.status = status
+    setDocument(document)
+    assert.equal((await run())[0]?.status, 'error')
+    assert.deepEqual(transitions, [])
+  }
+})
+
+test('missing or duplicate hook results cannot authorize an apply', async () => {
+  for (const corrupt of [
+    (d: ReturnType<typeof hookJob>) => {
+      d.included!.splice(2, 1)
+    },
+    (d: ReturnType<typeof hookJob>) => {
+      d.included![2]!.attributes.stepNumber = 100
+    }
+  ]) {
+    const {run, setDocument, transitions} = setup(hookTcl)
+    const document = hookJob()
+    corrupt(document)
+    setDocument(document)
+    assert.equal((await run())[0]?.status, 'error')
+    assert.deepEqual(transitions, [])
+  }
+})
+
+test('extra hooks cannot introduce duplicate gates, additional plans, unguarded applies or destroys', () => {
+  const source = Buffer.from(hookTcl, 'base64').toString()
+  for (const text of [
+    source.replace('type: policyEvaluation', 'type: terraformApply'),
+    source.replace('type: customScripts', 'type: approval'),
+    source.replace('type: policyEvaluation', 'type: terraformPlan'),
+    source.replace('type: customScripts', 'type: terraformDestroy'),
+    source.replace('type: customScripts', 'type: terraformPlanDestroy'),
+    source.replace('step: 150', 'step: 100'),
+    source.replace('step: 150', 'step: 150\n    ignoreError: true'),
+    source.replace('requireSavedPlan: true', 'requireSavedPlan: false')
+  ])
+    assert.throws(() => savedPlanTemplate(Buffer.from(text).toString('base64')))
 })

@@ -81,7 +81,7 @@ export class TerrakubeClient {
       )
       try {
         const token = await Promise.race([
-          this.credentials.get(),
+          this.credentials.get(controller.signal),
           new Promise<never>((_, reject) =>
             controller.signal.addEventListener(
               'abort',
@@ -238,7 +238,7 @@ export class TerrakubeClient {
           attributes: {
             name,
             source: this.config.repository,
-            branch: this.config.branch,
+            branch: this.config.workspaceBranch,
             folder,
             terraformVersion: version,
             iacType
@@ -356,15 +356,30 @@ export class TerrakubeClient {
 
   async logs(output: string, deadline?: number): Promise<string> {
     const url = new URL(output, `${this.config.endpoint}/`)
-    const endpoint = new URL(this.config.endpoint)
-    if (url.origin !== endpoint.origin || url.username || url.password)
-      throw new Error('Refusing to send credentials to an external log URL')
+    if (
+      !['https:', 'http:'].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.hash
+    )
+      throw new Error('Invalid Terrakube log URL')
+    // Step URLs can name a public host while the runner uses an internal endpoint.
+    // Only the log route is retained; credentials always go to the configured API.
+    const start = url.pathname.indexOf('/tfoutput/v1/')
+    const route = start < 0 ? '' : url.pathname.slice(start)
+    if (
+      !/^\/tfoutput\/v1\/organization\/[a-z\d-]+\/job\/\d+\/step\/[a-z\d-]+$/i.test(
+        route
+      )
+    )
+      throw new Error('Invalid Terrakube log path')
     const text = await this.request(
       'GET',
-      `${url.pathname.slice(endpoint.pathname.replace(/\/$/, '').length)}${url.search}`,
+      `${route}${url.search}`,
       undefined,
       deadline,
-      true
+      true,
+      'application/octet-stream'
     )
     return this.credentials.redact(
       this.config.githubToken

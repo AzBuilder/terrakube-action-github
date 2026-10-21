@@ -149,13 +149,14 @@ export async function discoverTargets(config: Config): Promise<Target[]> {
 }
 
 function repositoryIdentity(value: string): string {
-  // Treat SSH/HTTPS clone URLs as the same repository without ignoring host or path case.
+  // Match Terrakube's repository normalization across SSH/HTTPS URLs and case.
   return value
-    .replace(/^git@([^:]+):/, '$1/')
-    .replace(/^https?:\/\//, '')
-    .replace(/^ssh:\/\/git@/, '')
-    .replace(/\.git\/?$/, '')
+    .replace(/^git@([^:]+):/i, '$1/')
+    .replace(/^https?:\/\//i, '')
+    .replace(/^ssh:\/\/git@/i, '')
+    .replace(/\.git\/?$/i, '')
     .replace(/\/$/, '')
+    .toLowerCase()
 }
 
 export function validateWorkspace(

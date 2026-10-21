@@ -1,7 +1,11 @@
 import {Config} from './userInput'
 import {Document, sleep, TerrakubeClient} from './terrakube'
 import {Target, validateWorkspace} from './targets'
-import {savedPlanTemplate, verifySavedRun} from './savedPlan'
+import {
+  savedPlanTemplate,
+  verifySavedRun,
+  verifyApprovalGate
+} from './savedPlan'
 
 export interface JobResult {
   root: string
@@ -67,7 +71,9 @@ export function jobStatus(
       steps.some(
         step =>
           !successes.has(String(step.attributes.status)) &&
-          step.attributes.status !== 'notExecuted'
+          !['notExecuted', 'NeverExecuted'].includes(
+            String(step.attributes.status)
+          )
       )
     )
       throw new Error(
@@ -193,6 +199,10 @@ export async function runJobs(
             !failures.has(String(document.data.attributes.status))
           if (state.status === 'waitingApproval') {
             if (config.operation === 'plan') {
+              verifyApprovalGate(
+                document,
+                savedPlanTemplate(template.attributes.tcl)
+              )
               result.status = 'planned'
             } else {
               result.error =

@@ -12,6 +12,7 @@ export const config = (overrides: Partial<Config> = {}): Config => ({
   organization: 'example',
   template: 'Any template',
   branch: 'feature',
+  workspaceBranch: 'main',
   commit: sha,
   repository: 'https://github.com/example/repo.git',
   roots: ['infra'],
@@ -51,7 +52,8 @@ export const job = (
     item('step', `step-${i}`, {
       status,
       name: 'Plan',
-      output: 'https://terrakube.example/logs/1'
+      output:
+        'https://terrakube.example/tfoutput/v1/organization/org/job/1/step/step-1'
     })
   )
 })

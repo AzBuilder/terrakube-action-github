@@ -181,6 +181,7 @@ type Octokit = ReturnType<typeof github.getOctokit>
 export class Feedback {
   private readonly plans = new Map<string, string>()
   private readonly octokit?: Octokit
+  private authorId?: number
   private deadline = Infinity
 
   planFor(id?: string): string {
@@ -272,6 +273,15 @@ export class Feedback {
         (this.config.commit && this.config.commit !== current.head.sha)
       )
         return
+      if (!this.authorId) {
+        // GraphQL viewer supports installation tokens as well as user tokens.
+        const {viewer} = await this.octokit.graphql<{
+          viewer: {databaseId: number}
+        }>('query { viewer { databaseId } }')
+        if (!Number.isSafeInteger(viewer?.databaseId) || viewer.databaseId < 1)
+          throw new Error('Cannot determine the PR comment author')
+        this.authorId = viewer.databaseId
+      }
       const marker = `<!-- terrakube-action:${createHash('sha256')
         .update(
           JSON.stringify([
@@ -297,8 +307,7 @@ export class Feedback {
       )
       const owned = comments.filter(
         comment =>
-          comment.user?.login === 'github-actions[bot]' &&
-          comment.body?.startsWith(marker)
+          comment.user?.id === this.authorId && comment.body?.startsWith(marker)
       )
       const runId = github.context.runId
       const attempt = Number(process.env.GITHUB_RUN_ATTEMPT || 1)
@@ -343,6 +352,8 @@ export class Feedback {
           ...repo,
           comment_id: existing.id
         })
+        if (fresh.user?.id !== this.authorId || !fresh.body?.startsWith(marker))
+          return
         if (newerRun(fresh.body || '', runId, attempt)) return
         await this.octokit.rest.issues.updateComment({
           ...repo,
@@ -356,9 +367,34 @@ export class Feedback {
           body
         })
       }
-    } catch {
+    } catch (error) {
+      // API error messages can contain response bodies; publish only safe diagnostics.
+      let reason = 'GitHub request failed'
+      const localErrors = [
+        'PR feedback deadline exceeded',
+        'PR number is unavailable',
+        'Cannot determine the PR comment author',
+        'Too many PR comments to locate an owned comment safely'
+      ]
+      if (error instanceof Error && localErrors.includes(error.message))
+        reason = error.message
+      else if (
+        error instanceof Error &&
+        ['AbortError', 'TimeoutError'].includes(error.name)
+      )
+        reason = 'GitHub request timed out'
+      else if (
+        error &&
+        typeof error === 'object' &&
+        'status' in error &&
+        typeof error.status === 'number' &&
+        Number.isInteger(error.status) &&
+        error.status >= 400 &&
+        error.status <= 599
+      )
+        reason = `GitHub returned HTTP ${error.status}`
       core.warning(
-        'PR feedback could not be updated; check token permissions. Terrakube execution status is unchanged.'
+        `PR feedback could not be updated (${reason}). Terrakube execution status is unchanged.`
       )
     }
   }

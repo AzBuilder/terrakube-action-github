@@ -11,6 +11,7 @@ export interface Config {
   organization: string
   template: string
   branch: string
+  workspaceBranch: string
   commit: string
   repository: string
   roots: string[]
@@ -157,6 +158,11 @@ export function getActionInput(): Config {
       core.getInput('TERRAKUBE_BRANCH') ||
       github.context.payload.pull_request?.head?.ref ||
       github.context.ref.replace(/^refs\/heads\//, '') ||
+      'main',
+    workspaceBranch:
+      core.getInput('TERRAKUBE_WORKSPACE_BRANCH') ||
+      github.context.payload.repository?.default_branch ||
+      github.context.payload.pull_request?.base?.ref ||
       'main',
     commit: commit.toLowerCase(),
     repository: sshKey

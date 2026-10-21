@@ -57,3 +57,84 @@ test('redaction covers both current and retired OIDC credentials', async () => {
     'first=*** second=***'
   )
 })
+
+test('OIDC acquisition retries network failures with bounded backoff', async () => {
+  let calls = 0
+  const waits: number[] = []
+  const credentials = new Credentials(
+    config({auth: 'oidc', token: ''}),
+    async () => {
+      if (++calls < 3) throw new Error('temporary transport failure')
+      return jwt(1300)
+    },
+    () => 1_000_000,
+    async ms => {
+      waits.push(ms)
+    }
+  )
+  assert.equal(await credentials.get(), jwt(1300))
+  assert.equal(calls, 3)
+  assert.deepEqual(waits, [1000, 2000])
+})
+
+test('failed proactive renewal uses a still-valid token but never an expiring or expired one', async () => {
+  let now = 1_000_000
+  let calls = 0
+  const credentials = new Credentials(
+    config({auth: 'oidc', token: ''}),
+    async () => {
+      if (++calls === 1) return jwt(1300)
+      throw new Error('private upstream response')
+    },
+    () => now,
+    async () => {}
+  )
+  const first = await credentials.get()
+  now += 241_000
+  assert.equal(await credentials.get(), first)
+  assert.equal(calls, 4)
+  for (now of [1_291_000, 1_301_000]) {
+    await assert.rejects(
+      credentials.get(),
+      /Could not obtain a GitHub OIDC token/
+    )
+  }
+  assert.equal(calls, 10)
+})
+
+test('failed initial OIDC acquisition does not leak errors or fall back to a PAT', async () => {
+  let calls = 0
+  const credentials = new Credentials(
+    config({auth: 'oidc', token: 'unused-pat'}),
+    async () => {
+      calls++
+      throw new Error('private upstream response')
+    },
+    Date.now,
+    async () => {}
+  )
+  await assert.rejects(credentials.get(), {
+    message:
+      'Could not obtain a GitHub OIDC token; check id-token: write permissions and issuer availability'
+  })
+  assert.equal(calls, 3)
+})
+
+test('aborting credential acquisition prevents subsequent retries', async () => {
+  let calls = 0
+  const controller = new AbortController()
+  const credentials = new Credentials(
+    config({auth: 'oidc', token: ''}),
+    async () => {
+      calls++
+      controller.abort()
+      throw new Error('network failure')
+    },
+    Date.now,
+    async () => {
+      assert.fail('must not back off after cancellation')
+    }
+  )
+  await assert.rejects(credentials.get(controller.signal), {name: 'AbortError'})
+  assert.equal(calls, 1)
+})

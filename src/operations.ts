@@ -2,7 +2,11 @@ import {Config} from './userInput'
 import {Document, sleep, TerrakubeClient} from './terrakube'
 import {JobResult, jobStatus} from './runner'
 import {Target, validateWorkspace} from './targets'
-import {savedPlanTemplate, verifySavedRun} from './savedPlan'
+import {
+  savedPlanTemplate,
+  verifySavedRun,
+  verifyApprovalGate
+} from './savedPlan'
 
 type Client = Pick<
   TerrakubeClient,
@@ -49,7 +53,7 @@ export async function continueRun(
       config.template
     )
     if (!template) throw new Error(`Template not found: ${config.template}`)
-    const numbers = savedPlanTemplate(template.attributes.tcl)
+    const contract = savedPlanTemplate(template.attributes.tcl)
     const workspace = target.id
       ? await client.workspace(org.id, target.id)
       : await client.find(`${route}/workspace`, 'workspace', target.name)
@@ -65,18 +69,7 @@ export async function continueRun(
     result.revision = config.commit
     const status = String(document.data.attributes.status)
     if (status === 'waitingApproval') {
-      const steps = document.included || []
-      if (
-        !['pending', 'waitingApproval'].includes(
-          String(
-            steps.find(step => step.attributes.stepNumber === numbers[1])
-              ?.attributes.status
-          )
-        ) ||
-        steps.find(step => step.attributes.stepNumber === numbers[2])
-          ?.attributes.status !== 'pending'
-      )
-        throw new Error('Saved run is not paused before its apply step')
+      verifyApprovalGate(document, contract)
       mutated = true // A lost PATCH response must never result in a new submission.
       result.remoteMayBeRunning = true
       await client.transitionJob(

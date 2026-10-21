@@ -266,3 +266,20 @@ test('a failed step does not imply that the remote job has stopped', async () =>
   assert.equal(result?.status, 'failed')
   assert.equal(result?.remoteMayBeRunning, true)
 })
+
+test('completed jobs accept known skipped-step spellings without accepting unfinished or failed steps', () => {
+  for (const skipped of ['NeverExecuted', 'notExecuted']) {
+    assert.deepEqual(
+      jobStatus(job('completed', ['completed', skipped]), config()),
+      {status: 'completed', done: true}
+    )
+    assert.equal(
+      jobStatus(job('completed', [skipped, 'failed']), config()).status,
+      'failed'
+    )
+    assert.throws(
+      () => jobStatus(job('completed', [skipped, 'pending']), config()),
+      /unfinished/
+    )
+  }
+})
