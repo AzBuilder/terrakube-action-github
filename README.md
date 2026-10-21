@@ -4,7 +4,11 @@ Run Terrakube templates from GitHub Actions. The action waits for execution, rep
 
 Version 2 requires **Terrakube 2.34.0 or later**.
 
-## Usage with OIDC
+## Usage
+
+Choose [OIDC](#oidc) or a [personal access token](#token). Both examples run a plan against an existing workspace.
+
+### OIDC
 
 This workflow plans changes from a pull request using GitHub OIDC. Follow the [Terrakube setup](#github-oidc) below, then replace the example URLs, organization, template and workspace with your own values. No Terrakube token secret is needed.
 
@@ -36,6 +40,42 @@ jobs:
           TERRAKUBE_TEMPLATE: Terraform-Plan
           TERRAKUBE_AUTH: oidc
           TERRAKUBE_OIDC_AUDIENCE: api://terrakube
+          TERRAKUBE_ROOT: infrastructure/example
+          TERRAKUBE_WORKSPACE: example
+          TERRAKUBE_UI_URL: https://terrakube.example
+```
+
+### Token
+
+Create a Terrakube PAT and store it as the GitHub Actions secret `TERRAKUBE_PAT`. See [token setup](#personal-access-token) for access requirements. Replace the example URLs, organization, template and workspace with your own values.
+
+```yaml
+name: Terrakube plan
+on: pull_request
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: terrakube-${{ github.event.pull_request.number }}-example
+  cancel-in-progress: true
+jobs:
+  plan:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: terrakube-io/terrakube-action-github@v2.0.0
+        id: terrakube
+        with:
+          TERRAKUBE_ENDPOINT: https://api.terrakube.example
+          TERRAKUBE_ORGANIZATION: example
+          TERRAKUBE_TEMPLATE: Terraform-Plan
+          TERRAKUBE_AUTH: token
+          TERRAKUBE_TOKEN: ${{ secrets.TERRAKUBE_PAT }}
           TERRAKUBE_ROOT: infrastructure/example
           TERRAKUBE_WORKSPACE: example
           TERRAKUBE_UI_URL: https://terrakube.example
@@ -116,14 +156,9 @@ Grant the workflow `id-token: write` and omit `TERRAKUBE_TOKEN`. Tokens are rene
 
 ### Personal access token
 
-Create a Terrakube PAT with access to the intended workspace and job operations, then store it as the GitHub Actions secret `TERRAKUBE_PAT`. In the usage example, replace the two OIDC inputs with:
+Create a Terrakube PAT with access to the intended workspace and job operations, then store it as the GitHub Actions secret `TERRAKUBE_PAT`. Use it with `TERRAKUBE_AUTH: token` as shown in the [token workflow](#token).
 
-```yaml
-TERRAKUBE_AUTH: token
-TERRAKUBE_TOKEN: ${{ secrets.TERRAKUBE_PAT }}
-```
-
-Remove `id-token: write` if no other step needs it. `GITHUB_TOKEN` is used for PR feedback and cannot replace a Terrakube PAT.
+Token authentication does not need `id-token: write`. `GITHUB_TOKEN` is used for PR feedback and cannot replace a Terrakube PAT.
 
 ## Deploying from main
 
