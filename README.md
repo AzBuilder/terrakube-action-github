@@ -4,9 +4,9 @@ Run Terrakube templates from GitHub Actions. The action waits for execution, rep
 
 Version 2 requires **Terrakube 2.34.0 or later**.
 
-## Usage
+## Usage with OIDC
 
-This workflow plans changes from a pull request using GitHub OIDC. First configure [authentication](#authentication) and an existing Terrakube workspace pointing to this repository and root. Replace the example URLs, organization, template and workspace with your own values.
+This workflow plans changes from a pull request using GitHub OIDC. Follow the [Terrakube setup](#github-oidc) below, then replace the example URLs, organization, template and workspace with your own values. No Terrakube token secret is needed.
 
 ```yaml
 name: Terrakube plan
@@ -102,18 +102,15 @@ The action authenticates to the Terrakube API. Terrakube still needs its own VCS
 
 ### GitHub OIDC
 
-The usage example requests a short-lived GitHub token, so no Terrakube PAT is needed. In Terrakube, configure a federated credential with:
+To give the PR workflow access to Terrakube:
 
-| Setting  | Value                                                               |
-| -------- | ------------------------------------------------------------------- |
-| Issuer   | `https://token.actions.githubusercontent.com` for GitHub.com        |
-| Audience | `api://terrakube`, matching `TERRAKUBE_OIDC_AUDIENCE`               |
-| Claims   | The trusted repository and the subject for this PR workflow         |
-| Name     | The group name assigned to the Terrakube team that will run the job |
+- Create a team such as `github-actions-plan` in the target organization. Grant it access to the intended workspace, permission to read the template, and permission to create and view plan jobs. Keep production apply credentials separate.
+- Ask a Terrakube superuser to open **Organization settings → Federated Credentials** and add a credential. Set its **Team name** to `github-actions-plan`, exactly matching the team above. Federated trust is instance-wide, so check that the same team name does not grant unintended access in other organizations.
+- Set **Issuer URL** to `https://token.actions.githubusercontent.com` for GitHub.com and **Audience** to `api://terrakube`, matching the workflow's `TERRAKUBE_OIDC_AUDIENCE`.
+- Add exact claim conditions: `repository` = `example/infrastructure` (your GitHub owner/repository) and `event_name` = `pull_request` for the usage example. Use a separate credential for deployment, restricted to the main branch or protected environment. Wildcards are not supported.
+- Check that the workspace points to the same repository and root as the workflow, has VCS access to clone the repository, and has the provider credentials needed to plan. Confirm the named template exists, then open a trusted PR to test the connection.
 
-Use exact claim conditions. With GitHub's name-based subjects, a PR subject looks like `repo:example/infrastructure:pull_request`; a main-branch subject looks like `repo:example/infrastructure:ref:refs/heads/main`. A job using the `production` environment has the subject `repo:example/infrastructure:environment:production`. Repositories using immutable or customized subjects have different values: check your repository's actual claims before configuring trust. See [GitHub's OIDC reference](https://docs.github.com/en/actions/reference/security/oidc).
-
-The federated credential's name must match the group of a Terrakube team with access to the organization, workspace, template and job operations. Workspace creation requires workspace management permission. The action never approves jobs and does not need approval permission.
+If you restrict access by `sub`, match the actual GitHub subject. Name-based examples are `repo:example/infrastructure:pull_request` for PRs and `repo:example/infrastructure:environment:production` for the production environment below. Immutable or customized subjects differ. See [GitHub's OIDC reference](https://docs.github.com/en/actions/reference/security/oidc) and [Terrakube's federated identity guide](https://docs.terrakube.io/user-guide/organizations/federated-identity).
 
 Grant the workflow `id-token: write` and omit `TERRAKUBE_TOKEN`. Tokens are renewed 60 seconds before expiry; authentication failures do not fall back to a PAT.
 
