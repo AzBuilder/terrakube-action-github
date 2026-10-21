@@ -3,6 +3,8 @@ import {Document, Resource} from '../src/terrakube'
 
 export const sha = 'a'.repeat(40)
 export const config = (overrides: Partial<Config> = {}): Config => ({
+  operation: 'run',
+  jobId: '',
   endpoint: 'https://terrakube.example',
   token: 'test-token',
   auth: 'token',

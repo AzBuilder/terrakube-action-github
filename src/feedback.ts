@@ -33,13 +33,99 @@ export function planSummary(logs: string[]): string | undefined {
   return summaries.length === 1 ? summaries[0] : undefined
 }
 
-export function resultMarkdown(result: JobResult): string {
+export function structuredPlan(
+  context: Record<string, unknown>
+): string | undefined {
+  const status = context.structuredOutputStatus as {state?: unknown} | undefined
+  if (status?.state !== 'PERSISTED') return
+  const byStep = context.planStructuredOutput
+  if (!byStep || typeof byStep !== 'object' || Array.isArray(byStep)) return
+  const steps = Object.values(byStep)
+  // A combined count for multiple plans could count the same resource twice.
+  if (steps.length !== 1 || !Array.isArray(steps[0])) return
+  let add = 0,
+    change = 0,
+    destroy = 0,
+    imports = 0,
+    outputs = 0,
+    total = 0,
+    shown = 0
+  let rows = ''
+  const icons: Record<string, string> = {
+    create: '🟢',
+    update: '🔵',
+    delete: '🔴',
+    replace: '🟠',
+    import: '⬇️',
+    read: '⚪'
+  }
+  for (const value of steps[0]) {
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      typeof value.address !== 'string'
+    )
+      return
+    const actions = value.actions
+    let action = value.action
+    if (
+      Array.isArray(actions) &&
+      actions.includes('create') &&
+      actions.includes('delete')
+    )
+      action = 'replace'
+    if (action === 'no-op') continue
+    if (!Object.hasOwn(icons, action)) return
+    if (value.isOutputChange === true) {
+      outputs++
+      continue
+    }
+    if (action === 'create' || action === 'replace') add++
+    if (action === 'update') change++
+    if (action === 'delete' || action === 'replace') destroy++
+    if (action === 'import') imports++
+    total++
+    const address = escape(value.address.slice(0, 300))
+      .replace(/\|/g, '&#124;')
+      .replace(/[\r\n]/g, ' ')
+    const row = `| ${icons[action]} | <code>${address}</code> | ${action} |\n`
+    if (shown < 100 && Buffer.byteLength(rows + row) <= 20_000) {
+      rows += row
+      shown++
+    }
+  }
+  return `\n**Plan: ${add} to add, ${change} to change, ${destroy} to destroy.${imports ? ` ${imports} to import.` : ''}**\n${outputs ? `\n${outputs} output change(s); values are shown only in Terrakube.\n` : ''}${rows ? `\n| | Resource | Action |\n|---|---|---|\n${rows}` : ''}${total > shown ? `\n${total - shown} more resource changes; see the Terrakube job for the complete plan.\n` : ''}`
+}
+
+export function resultMarkdown(result: JobResult, plan = ''): string {
   const job = result.jobUrl
     ? `<a href="${escape(result.jobUrl)}">Job ${escape((result.jobId || '').slice(0, 128))}</a>`
     : result.jobId
       ? `Job ${escape(result.jobId.slice(0, 128))}`
       : 'No job ID available'
-  return `### Terrakube: ${escape(result.workspace.slice(0, 200))}\n\nStatus: **${escape(result.status)}** · Root: <code>${escape(result.root.slice(0, 500))}</code>\n\nRevision: <code>${escape((result.revision || result.requestedRevision || 'not reported').slice(0, 128))}</code> · ${job}\n${result.error ? `\n${escape(result.error.slice(0, 2000))}\n` : ''}${result.remoteMayBeRunning ? '\nThe remote job may still be running or waiting for approval.\n' : ''}`
+  return `### Terrakube: ${escape(result.workspace.slice(0, 200))}\n\nStatus: **${escape(result.status)}** · Root: <code>${escape(result.root.slice(0, 500))}</code>\n\nRevision: <code>${escape((result.revision || result.requestedRevision || 'not reported').slice(0, 128))}</code> · ${job}\n${result.error ? `\n${escape(result.error.slice(0, 2000))}\n` : ''}${result.remoteMayBeRunning ? '\nThe remote job may still be running or waiting for approval.\n' : ''}${plan}`
+}
+
+export function jobSummary(
+  results: JobResult[],
+  failure: string,
+  planFor: (id?: string) => string
+): string {
+  let body = '# Terrakube\n\n'
+  if (!results.length)
+    return body + (failure ? escape(failure) : 'No workspaces selected.')
+  for (const [index, result] of results.entries()) {
+    let block = resultMarkdown(result, planFor(result.jobId)) + '\n'
+    if (Buffer.byteLength(body + block) > 900_000)
+      block = resultMarkdown(result) + '\n'
+    if (Buffer.byteLength(body + block) > 900_000)
+      return (
+        body +
+        `\n${results.length - index} more workspace results; see JOBS output and Terrakube.\n`
+      )
+    body += block
+  }
+  return body
 }
 
 export function commentBody(
@@ -47,11 +133,13 @@ export function commentBody(
   marker: string,
   runId: number,
   attempt: number,
-  logs: {name: string; text: string}[]
+  logs: {name: string; text: string}[],
+  plan = ''
 ): string {
-  const header = `${marker}\n<!-- run:${runId}:${attempt} -->\n${resultMarkdown(result)}`
-  const summary =
-    result.status === 'noChanges'
+  const header = `${marker}\n<!-- run:${runId}:${attempt} -->\n${resultMarkdown(result, plan)}`
+  const summary = plan
+    ? undefined
+    : result.status === 'noChanges'
       ? 'No changes.'
       : planSummary(logs.map(log => log.text))
   let body = `${header}${summary ? `\n**${escape(summary)}**\n` : ''}`
@@ -91,8 +179,49 @@ export function newerRun(
 type Octokit = ReturnType<typeof github.getOctokit>
 
 export class Feedback {
+  private readonly plans = new Map<string, string>()
   private readonly octokit?: Octokit
   private deadline = Infinity
+
+  planFor(id?: string): string {
+    return id ? this.plans.get(id) || '' : ''
+  }
+
+  async collect(
+    result: JobResult,
+    client: Pick<TerrakubeClient, 'context'>
+  ): Promise<void> {
+    if (
+      !result.jobId ||
+      !['planned', 'completed', 'noChanges'].includes(result.status)
+    )
+      return
+    if (result.status === 'noChanges') {
+      this.plans.set(result.jobId, '\n**No changes.**\n')
+      return
+    }
+    try {
+      const plan = structuredPlan(
+        await client.context(
+          result.jobId,
+          Date.now() + this.config.requestTimeoutMs
+        )
+      )
+      this.plans.set(
+        result.jobId,
+        plan ||
+          '\nStructured plan details are unavailable; review the plan in Terrakube.\n'
+      )
+    } catch {
+      this.plans.set(
+        result.jobId,
+        '\nStructured plan details are unavailable; review the plan in Terrakube.\n'
+      )
+      core.warning(
+        'Structured plan details could not be read; execution status is unchanged'
+      )
+    }
+  }
 
   constructor(
     private readonly config: Config,
@@ -194,7 +323,14 @@ export class Feedback {
           }
         }
       }
-      const body = commentBody(result, marker, runId, attempt, logs)
+      const body = commentBody(
+        result,
+        marker,
+        runId,
+        attempt,
+        logs,
+        this.planFor(result.jobId)
+      )
       // Re-check the PR after log reads. Workflow concurrency provides serialization across writers.
       const {data: latest} = await this.octokit.rest.pulls.get({
         ...repo,

@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import * as github from '@actions/github'
-import {commentBody, Feedback, newerRun, planSummary} from '../src/feedback'
+import {
+  commentBody,
+  Feedback,
+  newerRun,
+  planSummary,
+  structuredPlan,
+  jobSummary
+} from '../src/feedback'
 import {JobResult} from '../src/runner'
 import {config, job, sha} from './helpers'
 
@@ -196,4 +203,89 @@ test('missing comment permissions are non-fatal; full logs require opt-in', asyn
   )
   assert.equal(next.counts().logReads, 1)
   assert.equal(result.status, 'completed')
+})
+
+test('structured feedback counts replacements and separates outputs without exposing values', () => {
+  const plan = structuredPlan({
+    structuredOutputStatus: {state: 'PERSISTED'},
+    planStructuredOutput: {
+      step: [
+        {
+          address: 'thing.replace',
+          action: 'replace',
+          actions: ['delete', 'create'],
+          before: {secret: 'PRIVATE'},
+          after: {secret: 'PRIVATE'}
+        },
+        {address: 'thing.update', action: 'update'},
+        {address: 'result', action: 'create', isOutputChange: true},
+        {address: 'thing.same', action: 'no-op'}
+      ]
+    }
+  })
+  assert.match(plan || '', /1 to add, 1 to change, 1 to destroy/)
+  assert.match(plan || '', /1 output change/)
+  assert.match(plan || '', /thing.replace/)
+  assert.doesNotMatch(plan || '', /PRIVATE|thing.same/)
+})
+
+test('large structured plans retain complete totals and bound the resource table', () => {
+  const plan =
+    structuredPlan({
+      structuredOutputStatus: {state: 'PERSISTED'},
+      planStructuredOutput: {
+        step: Array.from({length: 10000}, (_, i) => ({
+          address: `thing.example[${i}]`,
+          action: 'create'
+        }))
+      }
+    }) || ''
+  assert.match(plan, /10000 to add/)
+  assert.match(plan, /9900 more resource changes/)
+  assert.ok(Buffer.byteLength(plan) < 21000)
+})
+
+test('structured feedback fails closed on partial, ambiguous and unsupported plan data', () => {
+  assert.equal(
+    structuredPlan({
+      structuredOutputStatus: {state: 'PENDING'},
+      planStructuredOutput: {step: []}
+    }),
+    undefined
+  )
+  assert.equal(
+    structuredPlan({
+      structuredOutputStatus: {state: 'PERSISTED'},
+      planStructuredOutput: {one: [], two: []}
+    }),
+    undefined
+  )
+  assert.equal(
+    structuredPlan({
+      structuredOutputStatus: {state: 'PERSISTED'},
+      planStructuredOutput: {step: [{address: 'x', action: 'unknown'}]}
+    }),
+    undefined
+  )
+  const plan =
+    structuredPlan({
+      structuredOutputStatus: {state: 'PERSISTED'},
+      planStructuredOutput: {
+        step: [{address: '<script>|@person', action: 'delete'}]
+      }
+    }) || ''
+  assert.doesNotMatch(plan, /<script>|@person/)
+  assert.match(plan, /&#124;/)
+})
+
+test('multi-workspace summaries stay below GitHub’s size limit', () => {
+  const results = Array.from({length: 1000}, (_, i) => ({
+    root: 'infra',
+    workspace: 'workspace-' + i,
+    status: 'completed',
+    jobId: String(i)
+  }))
+  const body = jobSummary(results, '', () => 'x'.repeat(20000))
+  assert.ok(Buffer.byteLength(body) < 1000000)
+  assert.match(body, /Terrakube/)
 })

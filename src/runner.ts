@@ -1,6 +1,7 @@
 import {Config} from './userInput'
 import {Document, sleep, TerrakubeClient} from './terrakube'
 import {Target, validateWorkspace} from './targets'
+import {savedPlanTemplate, verifySavedRun} from './savedPlan'
 
 export interface JobResult {
   root: string
@@ -27,7 +28,7 @@ const active = new Set([
 
 export function jobStatus(
   document: Document,
-  config: Pick<Config, 'approval' | 'commit'>
+  config: Pick<Config, 'approval' | 'commit' | 'operation'>
 ): {status: string; done: boolean} {
   const status = document.data.attributes.status
   if (
@@ -42,9 +43,10 @@ export function jobStatus(
   const paused =
     status === 'waitingApproval' ||
     steps.some(step => step.attributes.status === 'waitingApproval')
-  if (paused)
-    return {status: 'waitingApproval', done: config.approval === 'fail'}
-  if (config.commit && (status === 'running' || successes.has(status))) {
+  if (
+    config.commit &&
+    (paused || status === 'running' || successes.has(status))
+  ) {
     const revision = document.data.attributes.commitId
     if (
       typeof revision !== 'string' ||
@@ -54,6 +56,11 @@ export function jobStatus(
         'Executed revision is missing or differs from TERRAKUBE_COMMIT; inspect the remote job before proceeding'
       )
   }
+  if (paused)
+    return {
+      status: 'waitingApproval',
+      done: config.approval === 'fail' || config.operation === 'plan'
+    }
   if (successes.has(status)) {
     if (!steps.length) throw new Error('Completed job has no step results')
     if (
@@ -72,7 +79,9 @@ export function jobStatus(
 }
 
 export const isSuccess = (result: JobResult): boolean =>
-  successes.has(result.status)
+  successes.has(result.status) ||
+  result.status === 'planned' ||
+  result.status === 'discarded'
 
 type Client = Pick<
   TerrakubeClient,
@@ -103,6 +112,7 @@ export async function runJobs(
     config.template
   )
   if (!template) throw new Error(`Template not found: ${config.template}`)
+  if (config.operation === 'plan') savedPlanTemplate(template.attributes.tcl)
   for (const target of targets) {
     const result: JobResult = {
       root: target.root,
@@ -168,12 +178,27 @@ export async function runJobs(
         const state = jobStatus(document, config)
         result.status = state.status
         if (state.done) {
+          if (
+            config.operation === 'plan' &&
+            ['waitingApproval', 'completed', 'noChanges'].includes(state.status)
+          ) {
+            verifySavedRun(document, workspace.id, config.commit, template)
+            if (state.status === 'completed')
+              throw new Error(
+                'Staged run completed before the GitHub approval handoff; inspect the remote job'
+              )
+          }
           result.remoteMayBeRunning =
             !successes.has(String(document.data.attributes.status)) &&
             !failures.has(String(document.data.attributes.status))
-          if (state.status === 'waitingApproval')
-            result.error =
-              'Job is waiting for approval in Terrakube; the action will not approve it'
+          if (state.status === 'waitingApproval') {
+            if (config.operation === 'plan') {
+              result.status = 'planned'
+            } else {
+              result.error =
+                'Job is waiting for approval in Terrakube; the action will not approve it'
+            }
+          }
           break
         }
         await pause(

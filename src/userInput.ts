@@ -2,6 +2,8 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 
 export interface Config {
+  operation: 'run' | 'plan' | 'apply' | 'discard'
+  jobId: string
   endpoint: string
   token: string
   auth: 'token' | 'oidc'
@@ -93,6 +95,29 @@ export function getActionInput(): Config {
     throw new Error(
       'Use TERRAKUBE_WORKSPACE or TERRAKUBE_WORKSPACE_ID, not both'
     )
+  const operation = choice(
+    'TERRAKUBE_OPERATION',
+    ['run', 'plan', 'apply', 'discard'],
+    'run'
+  )
+  const jobId = core.getInput('TERRAKUBE_JOB_ID')
+  if (operation !== 'run') {
+    if (roots.length !== 1 || !(workspace || workspaceId) || !commit)
+      throw new Error(
+        'Plan, apply and discard require one explicit root, workspace and TERRAKUBE_COMMIT'
+      )
+    if (
+      core.getInput('CREATE_WORKSPACE') &&
+      core.getBooleanInput('CREATE_WORKSPACE')
+    )
+      throw new Error('Staged operations require an existing workspace')
+  }
+  if (operation === 'apply' || operation === 'discard') {
+    if (!/^[1-9]\d*$/.test(jobId))
+      throw new Error('Apply and discard require a numeric TERRAKUBE_JOB_ID')
+  } else if (jobId) {
+    throw new Error('TERRAKUBE_JOB_ID is only used with apply or discard')
+  }
   const legacy = core.getInput('SHOW_OUTPUT')
   const comment = choice(
     'COMMENT_MODE',
@@ -117,6 +142,8 @@ export function getActionInput(): Config {
   const sshKey = core.getInput('TERRAKUBE_SSH_KEY_NAME')
   const server = new URL(github.context.serverUrl)
   return {
+    operation,
+    jobId,
     endpoint: httpUrl(
       core.getInput('TERRAKUBE_ENDPOINT', {required: true}),
       'TERRAKUBE_ENDPOINT'

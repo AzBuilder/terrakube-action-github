@@ -57,7 +57,7 @@ export class TerrakubeClient {
   }
 
   private async request(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PATCH',
     route: string,
     body?: unknown,
     deadline = Infinity,
@@ -119,6 +119,7 @@ export class TerrakubeClient {
             `Terrakube ${method} returned HTTP ${response.status}`
           )
         }
+        if (method === 'PATCH' && response.status === 204) return ''
         const reader = response.body?.getReader()
         if (!reader) throw new Error('Terrakube returned an empty response')
         const chunks: Uint8Array[] = []
@@ -309,6 +310,43 @@ export class TerrakubeClient {
     )
       throw new Error('Job response omitted step information')
     return {data, included: refs.map(ref => steps.get(ref.id) as Resource)}
+  }
+
+  async transitionJob(
+    organizationId: string,
+    id: string,
+    status: 'approved' | 'rejected',
+    deadline: number
+  ): Promise<void> {
+    await this.request(
+      'PATCH',
+      `${this.orgRoute(organizationId)}/job/${encodeURIComponent(id)}`,
+      {data: {type: 'job', id, attributes: {status}}},
+      deadline
+    )
+  }
+
+  async context(
+    id: string,
+    deadline?: number
+  ): Promise<Record<string, unknown>> {
+    const result = await this.json(
+      'GET',
+      `/context/v1/${encodeURIComponent(id)}`,
+      undefined,
+      deadline
+    )
+    return JSON.parse(
+      JSON.stringify(result, (_key, value: unknown) =>
+        typeof value === 'string'
+          ? this.credentials.redact(
+              this.config.githubToken
+                ? value.replaceAll(this.config.githubToken, '***')
+                : value
+            )
+          : value
+      )
+    ) as Record<string, unknown>
   }
 
   async logs(output: string, deadline?: number): Promise<string> {

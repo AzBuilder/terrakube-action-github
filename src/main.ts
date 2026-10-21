@@ -3,7 +3,8 @@ import {getActionInput} from './userInput'
 import {TerrakubeClient} from './terrakube'
 import {discoverTargets} from './targets'
 import {isSuccess, JobResult, runJobs} from './runner'
-import {escape, Feedback, resultMarkdown} from './feedback'
+import {Feedback, jobSummary} from './feedback'
+import {continueRun} from './operations'
 
 export function outputs(results: JobResult[]): void {
   const jobs = results.filter(result => result.jobId)
@@ -11,18 +12,28 @@ export function outputs(results: JobResult[]): void {
   core.setOutput('JOB_IDS', JSON.stringify(jobs.map(result => result.jobId)))
   core.setOutput('JOB_URL', jobs.length === 1 ? jobs[0]?.jobUrl || '' : '')
   core.setOutput(
+    'HAS_CHANGES',
+    results.some(result => result.status === 'planned')
+      ? 'true'
+      : results.length && results.every(result => result.status === 'noChanges')
+        ? 'false'
+        : ''
+  )
+  core.setOutput(
     'STATUS',
     !results.length
       ? 'skipped'
-      : results.every(isSuccess)
-        ? 'completed'
-        : results.some(result =>
-              ['pending', 'running', 'queue', 'approved'].includes(
-                result.status
+      : results.some(result => result.status === 'planned')
+        ? 'planned'
+        : results.every(isSuccess)
+          ? 'completed'
+          : results.some(result =>
+                ['pending', 'running', 'queue', 'approved'].includes(
+                  result.status
+                )
               )
-            )
-          ? 'running'
-          : 'failed'
+            ? 'running'
+            : 'failed'
   )
   core.setOutput('JOBS', JSON.stringify(results))
 }
@@ -31,6 +42,7 @@ async function run(): Promise<void> {
   let client: TerrakubeClient | undefined
   let results: JobResult[] = []
   let failure = ''
+  let feedback: Feedback | undefined
   try {
     const config = getActionInput()
     const targets = await discoverTargets(config)
@@ -43,8 +55,13 @@ async function run(): Promise<void> {
     else {
       const runClient = new TerrakubeClient(config)
       client = runClient
-      const feedback = new Feedback(config)
-      results = await runJobs(
+      const reporting = new Feedback(config)
+      feedback = reporting
+      const execute =
+        config.operation === 'apply' || config.operation === 'discard'
+          ? continueRun
+          : runJobs
+      results = await execute(
         config,
         targets,
         runClient,
@@ -52,7 +69,10 @@ async function run(): Promise<void> {
           results = current
           outputs(results)
         },
-        (result, document) => feedback.publish(result, document, runClient)
+        async (result, document) => {
+          await reporting.collect(result, runClient)
+          await reporting.publish(result, document, runClient)
+        }
       )
     }
     if (results.some(result => !isSuccess(result)))
@@ -65,9 +85,7 @@ async function run(): Promise<void> {
     if (failure) core.setOutput('STATUS', 'failed')
     try {
       await core.summary
-        .addRaw(
-          `# Terrakube\n\n${results.length ? results.map(resultMarkdown).join('\n') : failure ? escape(failure) : 'No workspaces selected.'}\n`
-        )
+        .addRaw(jobSummary(results, failure, id => feedback?.planFor(id) || ''))
         .write()
     } catch {
       core.warning('Could not write the GitHub job summary')

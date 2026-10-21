@@ -63,3 +63,29 @@ test('rejects invalid limits, ambiguous targets, non-SHA revisions and insecure 
     assert.throws(getActionInput)
   }
 })
+
+test('staged operations require explicit identity and apply/discard require a saved job ID', () => {
+  const target = {
+    TERRAKUBE_ROOT: 'infra',
+    TERRAKUBE_WORKSPACE: 'example',
+    TERRAKUBE_COMMIT: 'a'.repeat(40)
+  }
+  const invalid: Record<string, string>[] = [
+    {TERRAKUBE_OPERATION: 'plan'},
+    {...target, TERRAKUBE_OPERATION: 'apply'},
+    {...target, TERRAKUBE_OPERATION: 'discard', TERRAKUBE_JOB_ID: 'bad'},
+    {...target, TERRAKUBE_OPERATION: 'plan', CREATE_WORKSPACE: 'true'},
+    {TERRAKUBE_JOB_ID: '42'}
+  ]
+  for (const values of invalid) {
+    inputs(values)
+    assert.throws(getActionInput)
+  }
+  inputs({
+    ...target,
+    TERRAKUBE_OPERATION: 'apply',
+    TERRAKUBE_JOB_ID: '42',
+    TERRAKUBE_TEMPLATE: 'Plan and apply'
+  })
+  assert.equal(getActionInput().operation, 'apply')
+})

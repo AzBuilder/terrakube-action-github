@@ -66,6 +66,10 @@ async function execute(
           return
         }
         assert.equal(request.headers.authorization, `Bearer ${token}`)
+        if (url.pathname.startsWith('/context/v1/')) {
+          send({structuredOutputStatus: {state: 'PENDING'}})
+          return
+        }
         if (options.apiError) {
           send({errors: [{detail: 'private-server-details'}]}, 403)
           return

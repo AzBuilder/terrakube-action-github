@@ -114,6 +114,8 @@ The action runs on Node 24 and includes its dependencies. Self-hosted runners ne
 | `IGNORE_SSL_ERROR`        | Disable endpoint certificate verification; prefer `NODE_EXTRA_CA_CERTS` | `false`                                            |
 | `SHOW_OUTPUT`             | Deprecated: `true` selects full logs, `false` disables comments         |                                                    |
 
+`TERRAKUBE_OPERATION` defaults to `run`. Set it to `plan`, `apply` or `discard` for the staged workflow below. All staged operations require one explicit root, an existing workspace and a full commit SHA. Apply and discard also require a numeric `TERRAKUBE_JOB_ID`.
+
 An explicit `COMMENT_MODE` takes precedence over `SHOW_OUTPUT`. Token and OIDC authentication are mutually exclusive. Workspace name and ID inputs are mutually exclusive.
 
 ## Workspaces
@@ -160,9 +162,25 @@ Create a Terrakube PAT with access to the intended workspace and job operations,
 
 Token authentication does not need `id-token: write`. `GITHUB_TOKEN` is used for PR feedback and cannot replace a Terrakube PAT.
 
-## Deploying from main
+## Plan and apply with GitHub approval
 
-For production, run a plan on PRs and deploy the merged commit from a separate workflow. This example uses a Terrakube template named `Plan and apply`; choose a template that saves a plan, pauses for review, and applies that saved plan after approval in Terrakube.
+Use `TERRAKUBE_OPERATION: plan` to prepare a saved plan, then `apply` with its `JOB_ID` after GitHub approves the production job. Both invocations must name the same template and existing workspace, and use the same commit. The plan stays in Terrakube; nothing needs uploading to GitHub as a plan artifact.
+
+Create a dedicated Terrakube template with these three steps:
+
+```yaml
+flow:
+  - type: terraformPlan
+    step: 100
+  - type: approval
+    team: github-actions-apply
+    step: 200
+  - type: terraformApply
+    step: 300
+    requireSavedPlan: true
+```
+
+The middle step holds the run until the GitHub-approved apply job releases it through the API. There is no second human approval in Terrakube. Keep this template unchanged while plans are pending: the action checks the template reference and step sequence, but the API does not expose the job's private workflow snapshot. The executor fails if the saved plan cannot be loaded; Terraform/OpenTofu rejects a stale plan.
 
 ```yaml
 name: Terrakube deploy
@@ -176,7 +194,33 @@ concurrency:
   group: terrakube-production-example
   cancel-in-progress: false
 jobs:
-  terraform:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    outputs:
+      job-id: ${{ steps.terrakube.outputs.JOB_ID }}
+      has-changes: ${{ steps.terrakube.outputs.HAS_CHANGES }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: terrakube-io/terrakube-action-github@v2.0.0
+        id: terrakube
+        with:
+          TERRAKUBE_OPERATION: plan
+          TERRAKUBE_ENDPOINT: https://api.terrakube.example
+          TERRAKUBE_ORGANIZATION: example
+          TERRAKUBE_TEMPLATE: GitHub Plan and Apply
+          TERRAKUBE_AUTH: oidc
+          TERRAKUBE_OIDC_AUDIENCE: api://terrakube
+          TERRAKUBE_ROOT: infrastructure/example
+          TERRAKUBE_WORKSPACE: example
+          TERRAKUBE_COMMIT: ${{ github.sha }}
+          TERRAKUBE_UI_URL: https://terrakube.example
+  apply:
+    needs: plan
+    if: needs.plan.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 65
@@ -186,34 +230,33 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - uses: terrakube-io/terrakube-action-github@v2.0.0
-        id: terrakube
         with:
+          TERRAKUBE_OPERATION: apply
+          TERRAKUBE_JOB_ID: ${{ needs.plan.outputs.job-id }}
           TERRAKUBE_ENDPOINT: https://api.terrakube.example
           TERRAKUBE_ORGANIZATION: example
-          TERRAKUBE_TEMPLATE: Plan and apply
+          TERRAKUBE_TEMPLATE: GitHub Plan and Apply
           TERRAKUBE_AUTH: oidc
           TERRAKUBE_OIDC_AUDIENCE: api://terrakube
           TERRAKUBE_ROOT: infrastructure/example
           TERRAKUBE_WORKSPACE: example
           TERRAKUBE_COMMIT: ${{ github.sha }}
           TERRAKUBE_UI_URL: https://terrakube.example
-          APPROVAL_MODE: wait
-          COMMENT_MODE: off
 ```
 
-Configure the `production` environment's branch restrictions and protection rules in GitHub, and create a separate Terrakube federated credential for its subject. An environment name alone does not add protection. A GitHub environment approval happens before the action starts; review the resulting plan in Terrakube before approving its apply step. The PR preview and the merged commit's plan are separate plans.
+Configure required reviewers and branch restrictions on GitHub's `production` environment before running this workflow. Give the plan identity plan-only permissions. Map a separate OIDC credential to the apply team, restricted to the repository, main branch and production environment. GitHub requests that identity only after the environment gate passes. Environment reviewer availability depends on your [GitHub plan](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
 
-Keep dependent deployments in the same workflow. For example, a schemachange job should use `needs: terraform` so it starts only after Terraform succeeds. Keep the workflow concurrency group shared across the whole deployment. By default, GitHub keeps only one pending run per group; use its [queue configuration](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) if every deployment must run.
+A no-change plan skips apply. `TERRAKUBE_OPERATION: discard`, with the same job ID, template, workspace and commit, rejects a paused run without applying it. Discard requires Terrakube approval permission too; do not give that permission to the plan identity merely to automate cleanup. If GitHub approval is denied or the workflow is cancelled, discard the held run in Terrakube or through a separately authorized cleanup workflow before starting another deployment.
 
-GitHub concurrency does not lock a Terrakube workspace. Configure remote job serialization and state locking, and resolve any outstanding job before rerunning a failed or cancelled workflow. The action does not check for existing active jobs before submission.
+Keep dependent deployments in this workflow, with `needs: apply` and an explicit no-change path where appropriate. For example, schemachange must wait for Terraform to succeed. Keep one workflow concurrency group across the whole deployment. GitHub keeps only one pending run per group by default; use its [queue configuration](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) if every deployment must run.
 
-For repositories with shared modules, set roots explicitly so module changes also run the affected workspaces. For independent workspaces, a GitHub matrix with `fail-fast: false` and a suitable `max-parallel` lets you limit load on Terrakube. Use dependencies rather than a parallel matrix where execution order matters.
+GitHub concurrency does not lock a Terrakube workspace. Configure remote job serialization and state locking, and resolve outstanding jobs before retrying. For shared modules, set roots explicitly so module changes run affected workspaces. Use a bounded matrix only for independent workspaces.
 
 ## Execution
 
 The commit SHA is submitted as `job.commitId`, separately from `overrideBranch`. The action checks the server-reported revision; it fails if the revision is missing or different. Checkout should contain the same revision. An explicitly empty `TERRAKUBE_COMMIT` selects branch-tip execution and disables revision verification.
 
-`completed` and `noChanges` succeed unless a step failed. Failed, cancelled and rejected jobs fail the action. Approval pauses follow `APPROVAL_MODE`; the action never approves automatically. Unknown states, unfinished successful results, ambiguous lookups and API errors fail clearly.
+`completed` and `noChanges` succeed unless a step failed. Failed, cancelled and rejected jobs fail the action. `run` follows `APPROVAL_MODE` at a pause. `plan` returns successfully with `STATUS: planned` at its gate; only an explicit `apply` invocation releases that saved run. Unknown states, unfinished successful results, ambiguous lookups and API errors fail clearly.
 
 Eligible GET failures receive at most two retries. POST requests are not retried. Requests and polling have separate deadlines. The toolkit's OIDC request cannot be cancelled by the action and may finish after the authentication wait expires; set a workflow `timeout-minutes` as an additional limit.
 
@@ -230,6 +273,8 @@ Revision verification relies on the server's report.
 | `JOB_URL` | Single-job link when `TERRAKUBE_UI_URL` is set                                                                                     |
 | `STATUS`  | `running`, `completed`, `failed` or `skipped`                                                                                      |
 | `JOBS`    | JSON array of results with root, workspace, job ID, status, requested/reported revision, errors and whether execution may continue |
+
+`HAS_CHANGES` is `true` when a staged plan is ready to apply, `false` for `noChanges`, and empty when it cannot be determined. `STATUS` can also be `planned`; a successful discard has `status: discarded` in `JOBS`.
 
 Outputs retain submitted IDs after failures. Use `if: always()` in later steps to inspect failed runs. A job summary is written for successful, failed and skipped executions.
 
@@ -254,7 +299,7 @@ The record contains job results and IDs, without fetching plan logs. A cancelled
 
 ## PR feedback
 
-`summary` posts status, revision and an optional job link without fetching logs. `off` skips comments and log requests. `full` publishes collapsed logs and a plan summary when unambiguous. Full logs can contain sensitive infrastructure details; enable them only when suitable for the PR's audience. Known action credentials are redacted, but arbitrary secrets in plan output cannot be detected reliably.
+`summary` posts status, revision, a job link and structured plan changes when available, without fetching raw logs. The same structured plan appears in the GitHub job summary, including when comments are off. Resource values are never copied into the table. Tables show at most 100 resource changes within a 20 KB row budget; totals include every change and omitted rows link back to Terrakube. Multiple plan steps or unavailable structured data are not reported as zero changes. `off` skips comments and log requests. `full` publishes collapsed logs and a plan summary when unambiguous. Full logs can contain sensitive infrastructure details; enable them only when suitable for the PR's audience. Known action credentials are redacted, but arbitrary secrets in plan output cannot be detected reliably.
 
 The action updates one marked `github-actions[bot]` comment per API/organization/workspace. Use the default GitHub token for comment ownership. Stale PR heads, older runs and older retry attempts are skipped. Workflows writing the same comment must share a concurrency group: GitHub comment updates are not atomic. Cancelling a workflow leaves remote jobs unchanged.
 

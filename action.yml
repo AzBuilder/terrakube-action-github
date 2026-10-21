@@ -4,6 +4,11 @@ branding:
   icon: package
   color: purple
 inputs:
+  TERRAKUBE_OPERATION:
+    description: run a template, plan for external approval, or apply/discard an existing saved run
+    default: run
+  TERRAKUBE_JOB_ID:
+    description: Existing Terrakube job ID; required for apply or discard
   TERRAKUBE_ENDPOINT:
     description: Terrakube API base URL (HTTPS)
     required: true
@@ -11,7 +16,7 @@ inputs:
     description: Terrakube organization name
     required: true
   TERRAKUBE_TEMPLATE:
-    description: Terrakube template name
+    description: Terrakube template name; must match the existing run for apply or discard
     required: true
   TERRAKUBE_AUTH:
     description: Authentication mode (token or oidc)
@@ -61,6 +66,8 @@ inputs:
     description: Disable Terrakube TLS certificate verification; prefer NODE_EXTRA_CA_CERTS
     default: 'false'
 outputs:
+  HAS_CHANGES:
+    description: true for a staged plan ready to apply; false for a no-change plan; otherwise empty
   JOB_ID:
     description: Submitted job ID for a single job; empty for multiple jobs
   JOB_IDS:
@@ -68,7 +75,7 @@ outputs:
   JOB_URL:
     description: UI URL for a single job when TERRAKUBE_UI_URL is set
   STATUS:
-    description: Aggregate status (running, completed, failed, skipped)
+    description: Aggregate status (running, planned, completed, failed, skipped)
   JOBS:
     description: JSON array with root, workspace, jobId, jobUrl, status, revision, error and remoteMayBeRunning
 runs:

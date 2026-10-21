@@ -27,6 +27,32 @@ function setup(overrides = {}) {
   }
 }
 
+test('saved-run mutations accept no-content responses and are never retried', async () => {
+  const {client, pool, close, agent} = setup()
+  pool
+    .intercept({
+      method: 'PATCH',
+      path: '/api/v1/organization/org/job/42',
+      body: JSON.stringify({
+        data: {type: 'job', id: '42', attributes: {status: 'approved'}}
+      })
+    })
+    .reply(204)
+  pool
+    .intercept({method: 'PATCH', path: '/api/v1/organization/org/job/43'})
+    .reply(503)
+  try {
+    await client.transitionJob('org', '42', 'approved', Date.now() + 5000)
+    await assert.rejects(
+      client.transitionJob('org', '43', 'rejected', Date.now() + 5000),
+      /HTTP 503/
+    )
+    agent.assertNoPendingInterceptors()
+  } finally {
+    await close()
+  }
+})
+
 test('quotes and encodes filter literals without query injection', async () => {
   const {client, pool, close} = setup()
   const name = "Plan's & apply=1"
