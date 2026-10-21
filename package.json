@@ -4,7 +4,7 @@
   "description": "GitHub Action for Terrakube",
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc build src/main.ts -o dist --license licenses.txt",
+    "build": "ncc build src/main.ts -o dist --minify --license licenses.txt",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format-check": "prettier --check .",

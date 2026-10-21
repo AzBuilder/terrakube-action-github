@@ -36,6 +36,7 @@ try {
       'src/main.ts',
       '-o',
       directory,
+      '--minify',
       '--license',
       'licenses.txt'
     ],
