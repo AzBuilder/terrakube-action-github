@@ -6,7 +6,7 @@ Version 2 requires **Terrakube 2.34.0 or later**.
 
 ## Usage
 
-Run a plan against an existing workspace:
+This workflow plans changes from a pull request using GitHub OIDC. First configure [authentication](#authentication) and an existing Terrakube workspace pointing to this repository and root. Replace the example URLs, organization, template and workspace with your own values.
 
 ```yaml
 name: Terrakube plan
@@ -14,11 +14,13 @@ on: pull_request
 permissions:
   contents: read
   pull-requests: write
+  id-token: write
 concurrency:
   group: terrakube-${{ github.event.pull_request.number }}-example
   cancel-in-progress: true
 jobs:
   plan:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 65
     steps:
@@ -32,13 +34,16 @@ jobs:
           TERRAKUBE_ENDPOINT: https://api.terrakube.example
           TERRAKUBE_ORGANIZATION: example
           TERRAKUBE_TEMPLATE: Terraform-Plan
-          TERRAKUBE_TOKEN: ${{ secrets.TERRAKUBE_PAT }}
+          TERRAKUBE_AUTH: oidc
+          TERRAKUBE_OIDC_AUDIENCE: api://terrakube
           TERRAKUBE_ROOT: infrastructure/example
           TERRAKUBE_WORKSPACE: example
           TERRAKUBE_UI_URL: https://terrakube.example
 ```
 
 For stronger supply-chain protection, pin actions to a full commit SHA. Only run templates and repository code trusted to use the workspace's credentials. Fork PRs may lack credentials, comment permissions, or a commit reachable from the workspace repository. Do not check out untrusted PR code in a privileged `pull_request_target` workflow.
+
+Selecting a plan template does not make the execution identity read-only. Keep PR credentials separate from production apply credentials, including the provider credentials available to the Terrakube executor.
 
 The action runs on Node 24 and includes its dependencies. Self-hosted runners need Node 24 action support (runner v2.327.1 or newer). Git is needed for change discovery. HTTPS proxy settings and `NODE_EXTRA_CA_CERTS` are supported.
 
@@ -91,22 +96,86 @@ To create missing workspaces, set `CREATE_WORKSPACE: 'true'` and supply configur
 
 `workspace` defaults to the directory name. `terraform` is required for creation and selects the Terraform/OpenTofu version. `iacType` is `terraform` (default) or `tofu`. Existing workspaces keep their engine and version. Templates are selected by name without restrictions.
 
-## OIDC authentication
+## Authentication
 
-Grant the workflow `id-token: write`, remove `TERRAKUBE_TOKEN`, and set:
+The action authenticates to the Terrakube API. Terrakube still needs its own VCS credentials to clone a private repository, and its executor needs provider credentials to run Terraform or OpenTofu. Checkout credentials and the action's OIDC token do not configure those connections.
 
-```yaml
-TERRAKUBE_AUTH: oidc
-TERRAKUBE_OIDC_AUDIENCE: api://terrakube
-```
+### GitHub OIDC
 
-Configure a Terrakube federated credential with the GitHub issuer (`https://token.actions.githubusercontent.com` on GitHub.com), the same audience, and restrictive claims for the trusted repository and workflow. Match the actual `sub` value: subjects differ for PRs, branches and environments. Federated claim conditions use exact matching.
+The usage example requests a short-lived GitHub token, so no Terrakube PAT is needed. In Terrakube, configure a federated credential with:
+
+| Setting  | Value                                                               |
+| -------- | ------------------------------------------------------------------- |
+| Issuer   | `https://token.actions.githubusercontent.com` for GitHub.com        |
+| Audience | `api://terrakube`, matching `TERRAKUBE_OIDC_AUDIENCE`               |
+| Claims   | The trusted repository and the subject for this PR workflow         |
+| Name     | The group name assigned to the Terrakube team that will run the job |
+
+Use exact claim conditions. With GitHub's name-based subjects, a PR subject looks like `repo:example/infrastructure:pull_request`; a main-branch subject looks like `repo:example/infrastructure:ref:refs/heads/main`. A job using the `production` environment has the subject `repo:example/infrastructure:environment:production`. Repositories using immutable or customized subjects have different values: check your repository's actual claims before configuring trust. See [GitHub's OIDC reference](https://docs.github.com/en/actions/reference/security/oidc).
 
 The federated credential's name must match the group of a Terrakube team with access to the organization, workspace, template and job operations. Workspace creation requires workspace management permission. The action never approves jobs and does not need approval permission.
 
-Tokens come from `@actions/core.getIDToken` and are renewed 60 seconds before expiry. There is no PAT fallback. See [GitHub's OIDC reference](https://docs.github.com/en/actions/reference/security/oidc).
+Grant the workflow `id-token: write` and omit `TERRAKUBE_TOKEN`. Tokens are renewed 60 seconds before expiry; authentication failures do not fall back to a PAT.
 
-OIDC relies on Terrakube's federated audience, external-token and scoped RBAC handling. Configure the issuer, audience, claim conditions and team permissions before enabling OIDC.
+### Personal access token
+
+Create a Terrakube PAT with access to the intended workspace and job operations, then store it as the GitHub Actions secret `TERRAKUBE_PAT`. In the usage example, replace the two OIDC inputs with:
+
+```yaml
+TERRAKUBE_AUTH: token
+TERRAKUBE_TOKEN: ${{ secrets.TERRAKUBE_PAT }}
+```
+
+Remove `id-token: write` if no other step needs it. `GITHUB_TOKEN` is used for PR feedback and cannot replace a Terrakube PAT.
+
+## Deploying from main
+
+For production, run a plan on PRs and deploy the merged commit from a separate workflow. This example uses a Terrakube template named `Plan and apply`; choose a template that saves a plan, pauses for review, and applies that saved plan after approval in Terrakube.
+
+```yaml
+name: Terrakube deploy
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: terrakube-production-example
+  cancel-in-progress: false
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: terrakube-io/terrakube-action-github@v2.0.0
+        id: terrakube
+        with:
+          TERRAKUBE_ENDPOINT: https://api.terrakube.example
+          TERRAKUBE_ORGANIZATION: example
+          TERRAKUBE_TEMPLATE: Plan and apply
+          TERRAKUBE_AUTH: oidc
+          TERRAKUBE_OIDC_AUDIENCE: api://terrakube
+          TERRAKUBE_ROOT: infrastructure/example
+          TERRAKUBE_WORKSPACE: example
+          TERRAKUBE_COMMIT: ${{ github.sha }}
+          TERRAKUBE_UI_URL: https://terrakube.example
+          APPROVAL_MODE: wait
+          COMMENT_MODE: off
+```
+
+Configure the `production` environment's branch restrictions and protection rules in GitHub, and create a separate Terrakube federated credential for its subject. An environment name alone does not add protection. A GitHub environment approval happens before the action starts; review the resulting plan in Terrakube before approving its apply step. The PR preview and the merged commit's plan are separate plans.
+
+Keep dependent deployments in the same workflow. For example, a schemachange job should use `needs: terraform` so it starts only after Terraform succeeds. Keep the workflow concurrency group shared across the whole deployment. By default, GitHub keeps only one pending run per group; use its [queue configuration](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) if every deployment must run.
+
+GitHub concurrency does not lock a Terrakube workspace. Configure remote job serialization and state locking, and resolve any outstanding job before rerunning a failed or cancelled workflow. The action does not check for existing active jobs before submission.
+
+For repositories with shared modules, set roots explicitly so module changes also run the affected workspaces. For independent workspaces, a GitHub matrix with `fail-fast: false` and a suitable `max-parallel` lets you limit load on Terrakube. Use dependencies rather than a parallel matrix where execution order matters.
 
 ## Execution
 
@@ -131,6 +200,25 @@ Revision verification relies on the server's report.
 | `JOBS`    | JSON array of results with root, workspace, job ID, status, requested/reported revision, errors and whether execution may continue |
 
 Outputs retain submitted IDs after failures. Use `if: always()` in later steps to inspect failed runs. A job summary is written for successful, failed and skipped executions.
+
+To keep a recovery record, add these steps after the action step with `id: terrakube`:
+
+```yaml
+- name: Write Terrakube job record
+  if: always()
+  env:
+    TERRAKUBE_JOBS: ${{ steps.terrakube.outputs.JOBS }}
+  shell: bash
+  run: printf '%s\n' "$TERRAKUBE_JOBS" > "$RUNNER_TEMP/terrakube-jobs.json"
+- uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+  if: always()
+  with:
+    name: terrakube-jobs-${{ github.run_id }}-${{ github.run_attempt }}
+    path: ${{ runner.temp }}/terrakube-jobs.json
+    retention-days: 30
+```
+
+The record contains job results and IDs, without fetching plan logs. A cancelled runner may not reach these steps; use the action's summary and Terrakube job history when recovering a run.
 
 ## PR feedback
 
