@@ -61,7 +61,8 @@ export class TerrakubeClient {
     route: string,
     body?: unknown,
     deadline = Infinity,
-    logs = false
+    logs = false,
+    accept = 'application/vnd.api+json'
   ): Promise<string> {
     const url = new URL(`${this.config.endpoint}${route}`)
     const expected = new URL(this.config.endpoint)
@@ -93,7 +94,7 @@ export class TerrakubeClient {
           method,
           headers: {
             Authorization: `Bearer ${token}`,
-            Accept: 'application/vnd.api+json',
+            Accept: accept,
             ...(body ? {'Content-Type': 'application/vnd.api+json'} : {})
           },
           body: body ? JSON.stringify(body) : undefined,
@@ -165,11 +166,14 @@ export class TerrakubeClient {
     method: 'GET' | 'POST',
     route: string,
     body?: unknown,
-    deadline?: number
+    deadline?: number,
+    accept = 'application/vnd.api+json'
   ): Promise<Record<string, unknown>> {
     let result: unknown
     try {
-      result = JSON.parse(await this.request(method, route, body, deadline))
+      result = JSON.parse(
+        await this.request(method, route, body, deadline, false, accept)
+      )
     } catch (error) {
       if (error instanceof SyntaxError)
         throw new Error('Terrakube returned invalid JSON')
@@ -334,7 +338,8 @@ export class TerrakubeClient {
       'GET',
       `/context/v1/${encodeURIComponent(id)}`,
       undefined,
-      deadline
+      deadline,
+      'application/json'
     )
     return JSON.parse(
       JSON.stringify(result, (_key, value: unknown) =>

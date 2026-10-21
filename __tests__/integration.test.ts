@@ -67,7 +67,11 @@ async function execute(
         }
         assert.equal(request.headers.authorization, `Bearer ${token}`)
         if (url.pathname.startsWith('/context/v1/')) {
-          send({structuredOutputStatus: {state: 'PENDING'}})
+          assert.equal(request.headers.accept, 'application/json')
+          response.writeHead(200, {'content-type': 'application/json'})
+          response.end(
+            JSON.stringify({structuredOutputStatus: {state: 'PENDING'}})
+          )
           return
         }
         if (options.apiError) {

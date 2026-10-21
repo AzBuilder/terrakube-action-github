@@ -275,3 +275,27 @@ test('oversized log responses are truncated and oversized API documents fail', a
     await close()
   }
 })
+
+test('context requests use JSON while job requests use JSON:API', async () => {
+  const {client, pool, close, agent} = setup()
+  const context = {structuredOutputStatus: {state: 'PERSISTED'}}
+  pool
+    .intercept({path: '/context/v1/42', headers: {accept: 'application/json'}})
+    .reply(200, context)
+  pool
+    .intercept({
+      path: '/api/v1/organization/org/job/job-1?include=step',
+      headers: {accept: 'application/vnd.api+json'}
+    })
+    .reply(200, job('completed'))
+  try {
+    assert.deepEqual(await client.context('42'), context)
+    assert.equal(
+      (await client.job('org', 'job-1', Date.now() + 1000)).data.id,
+      'job-1'
+    )
+    agent.assertNoPendingInterceptors()
+  } finally {
+    await close()
+  }
+})
