@@ -1,0 +1,56 @@
+name: CI
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run check-bundle
+        if: runner.os == 'Linux'
+      - run: npm audit --omit=dev
+        if: runner.os == 'Linux'
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '.')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node --input-type=module -e "import p from './package.json' with {type:'json'}; if (process.env.RELEASE_TAG !== 'v' + p.version) process.exit(1)"
+      - name: Run action with invalid credentials
+        id: invalid
+        continue-on-error: true
+        uses: ./
+        with:
+          TERRAKUBE_ENDPOINT: https://terrakube.example
+          TERRAKUBE_ORGANIZATION: test
+          TERRAKUBE_TEMPLATE: test
+          TERRAKUBE_TOKEN: ''
+          GITHUB_TOKEN: ''
+          COMMENT_MODE: off
+      - name: Check action failure and outputs
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.invalid.outcome }}
+          STATUS: ${{ steps.invalid.outputs.STATUS }}
+          JOB_IDS: ${{ steps.invalid.outputs.JOB_IDS }}
+        run: |
+          test "$OUTCOME" = failure
+          test "$STATUS" = failed
+          test "$JOB_IDS" = '[]'

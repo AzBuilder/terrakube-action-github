@@ -1,50 +1,47 @@
 {
   "name": "terrakube-action-github",
-  "version": "1.0.0",
-  "description": "Github Action for Terrakube",
-  "main": "dist/main.js",
+  "version": "2.0.0",
+  "description": "GitHub Action for Terrakube",
+  "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "format": "prettier --write '**/*.ts'",
-    "format-check": "prettier --check '**/*.ts'",
-    "lint": "eslint src/**/*.ts",
-    "package": "ncc build --source-map --license licenses.txt",
-    "test": "npm run build && jest",
-    "all": "npm run build && npm run format && npm run lint && npm run package && npm test"
+    "build": "ncc build src/main.ts -o dist --license licenses.txt",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format-check": "prettier --check .",
+    "lint": "eslint .",
+    "test": "node --import tsx --test \"__tests__/*.test.ts\"",
+    "check": "npm run typecheck && npm run lint && npm run format-check && npm test",
+    "check-bundle": "node scripts/check-bundle.mjs"
   },
-  "repository": "git+https://github.com/AzBuilder/terrakube-action-github.git",
+  "repository": "git+https://github.com/terrakube-io/terrakube-action-github.git",
+  "author": "Alfredo España <alfespa17@gmail.com>",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
+    "@actions/glob": "^0.7.0",
+    "undici": "^8.12.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vercel/ncc": "^0.45.0",
+    "eslint": "^10.13.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.0"
+  },
+  "type": "module",
   "keywords": [
     "actions",
     "node",
     "setup"
   ],
-  "author": "Alfredo España <alfespa17@gmail.com>",
-  "license": "apache-2.0",
   "bugs": {
-    "url": "https://github.com/AzBuilder/terrakube-action-github/issues"
+    "url": "https://github.com/terrakube-io/terrakube-action-github/issues"
   },
-  "homepage": "https://github.com/AzBuilder/terrakube-action-github#readme",
-  "private": false,
-  "dependencies": {
-    "@actions/core": "^1.6.0",
-    "@actions/exec": "^1.1.1",
-    "@actions/github": "^5.1.0",
-    "@actions/glob": "^0.3.0",
-    "@actions/http-client": "^1.0.11",
-    "query-string": "^7.1.1"
-  },
-  "devDependencies": {
-    "@types/node": "^16.10.5",
-    "@types/simple-oauth2": "^4.1.1",
-    "@typescript-eslint/parser": "^5.8.1",
-    "@vercel/ncc": "^0.31.1",
-    "eslint": "^7.32.0",
-    "eslint-plugin-github": "^4.3.2",
-    "eslint-plugin-jest": "^25.3.2",
-    "jest": "^27.2.5",
-    "js-yaml": "^4.1.0",
-    "prettier": "2.5.1",
-    "ts-jest": "^27.1.2",
-    "typescript": "^4.6.3"
-  }
+  "homepage": "https://github.com/terrakube-io/terrakube-action-github#readme"
 }

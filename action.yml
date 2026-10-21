@@ -1,86 +1,76 @@
-name: "TerrakubeAction"
-description: "Github integration with Terrakube Platform"
+name: TerrakubeAction
+description: Run Terrakube 2.34+ jobs with bounded execution and GitHub feedback
 branding:
-  icon: "package"
-  color: "purple"
+  icon: package
+  color: purple
 inputs:
-  TERRAKUBE_TOKEN:
-    description: "Terrakube Personal Access Token"
-    required: true
   TERRAKUBE_ENDPOINT:
-    description: "Terrakube Endpoint"
-    required: true
-  TERRAKUBE_TEMPLATE:
-    description: "Terrakube Template"
+    description: Terrakube API base URL (HTTPS)
     required: true
   TERRAKUBE_ORGANIZATION:
-    description: "Terrakube Organization"
+    description: Terrakube organization name
     required: true
+  TERRAKUBE_TEMPLATE:
+    description: Terrakube template name
+    required: true
+  TERRAKUBE_AUTH:
+    description: Authentication mode (token or oidc)
+    default: token
+  TERRAKUBE_TOKEN:
+    description: Terrakube PAT; required only with token authentication
+  TERRAKUBE_OIDC_AUDIENCE:
+    description: Audience registered in the Terrakube federated credential; required for oidc
   TERRAKUBE_BRANCH:
-    description: "Repository branch to be executed"
-    default: "main"
-    required: true
+    description: Repository branch (defaults to PR head branch or current ref)
+  TERRAKUBE_COMMIT:
+    description: Full immutable commit SHA; leave empty only for branch-tip execution
+    default: ${{ github.event.pull_request.head.sha || github.sha }}
+  TERRAKUBE_ROOT:
+    description: Repository-relative root, or newline-separated roots; bypasses change discovery
+  TERRAKUBE_WORKSPACE:
+    description: Workspace name; requires exactly one explicit root
+  TERRAKUBE_WORKSPACE_ID:
+    description: Workspace ID instead of a name; requires exactly one explicit root
+  CREATE_WORKSPACE:
+    description: Allow creating missing workspaces from terrakube.json
+    default: 'false'
   TERRAKUBE_SSH_KEY_NAME:
-    description: "Repository branch to be executed"
-    required: false
+    description: Existing Terrakube SSH key name for workspace creation and SSH repository matching
+  TIMEOUT_SECONDS:
+    description: Maximum elapsed execution time per job, including polling retries
+    default: '3600'
+  REQUEST_TIMEOUT_SECONDS:
+    description: Maximum time per HTTP request, including credential acquisition and response body
+    default: '30'
+  POLL_INTERVAL_SECONDS:
+    description: Delay between job status reads
+    default: '5'
+  APPROVAL_MODE:
+    description: Wait for manual approval or fail on pause (wait or fail)
+    default: wait
+  COMMENT_MODE:
+    description: PR feedback (off, summary, or full); overrides SHOW_OUTPUT
   SHOW_OUTPUT:
-    description: "Show Terrakube job output inside github commets"
-    required: true
+    description: Deprecated; true selects full logs and false selects off when COMMENT_MODE is unset
   GITHUB_TOKEN:
-    description: "Github Token"
-    required: true
+    description: GitHub token for PR comments; omitted feedback is non-fatal
+    default: ${{ github.token }}
+  TERRAKUBE_UI_URL:
+    description: Optional Terrakube UI base URL for job links
   IGNORE_SSL_ERROR:
-    description: "Ignore SSL errors (e.g. self-signed certificate)"
-    required: false
-    default: false
+    description: Disable Terrakube TLS certificate verification; prefer NODE_EXTRA_CA_CERTS
+    default: 'false'
 outputs:
   JOB_ID:
-    description: "Terrakube Job Execution Id"
+    description: Submitted job ID for a single job; empty for multiple jobs
+  JOB_IDS:
+    description: JSON array of every submitted job ID, written immediately after submission
+  JOB_URL:
+    description: UI URL for a single job when TERRAKUBE_UI_URL is set
+  STATUS:
+    description: Aggregate status (running, completed, failed, skipped)
+  JOBS:
+    description: JSON array with root, workspace, jobId, jobUrl, status, revision, error and remoteMayBeRunning
 runs:
-  using: "composite"
-  steps:
-    - name: Get changed folders
-      id: changed-files
-      uses: tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
-      with:
-        dir_names: "true"
-
-    - name: List all folder changes
-      shell: bash
-      run: |
-        for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
-          echo "$folder was changed"
-        done
-
-    - name: Use Node.js
-      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-      with:
-        node-version: 16
-
-    - name: Install dependencies
-      shell: bash
-      run: |
-        yarn install
-        yarn build
-      working-directory: ${{ github.action_path }}
-
-    - run: |
-        node ${{ github.action_path }}/dist/main.js
-      id: terrakube-integration
-      shell: bash
-      env:
-        # INPUT_<VARIABLE_NAME> is not available in Composite run steps
-        # https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#example-specifying-inputs
-        INPUT_TERRAKUBE_TOKEN: ${{ inputs.TERRAKUBE_TOKEN }}
-        INPUT_TERRAKUBE_ENDPOINT: ${{ inputs.TERRAKUBE_ENDPOINT }}
-        INPUT_TERRAKUBE_TEMPLATE: ${{ inputs.TERRAKUBE_TEMPLATE }}
-        INPUT_TERRAKUBE_BRANCH: ${{ inputs.TERRAKUBE_BRANCH }}
-        INPUT_TERRAKUBE_ORGANIZATION: ${{ inputs.TERRAKUBE_ORGANIZATION }}
-        INPUT_TERRAKUBE_FOLDER: ${{ steps.changed-files.outputs.all_changed_files }}
-        INPUT_TERRAKUBE_SSH_KEY_NAME: ${{ inputs.TERRAKUBE_SSH_KEY_NAME }}
-        INPUT_SERVER_URL: ${{ github.server_url }}
-        INPUT_GIT_REPOSITORY: ${{  github.repository }}
-        INPUT_SHOW_OUTPUT: ${{ inputs.SHOW_OUTPUT }}
-        INPUT_GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-        INPUT_IGNORE_SSL_ERROR: ${{ inputs.IGNORE_SSL_ERROR }}
-        INPUT_GITHUB_WORKSPACE: ${{ github.workspace }}
+  using: node24
+  main: dist/index.js

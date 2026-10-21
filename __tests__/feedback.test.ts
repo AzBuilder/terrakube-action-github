@@ -1,0 +1,199 @@
+import assert from 'node:assert/strict'
+import {test} from 'node:test'
+import * as github from '@actions/github'
+import {commentBody, Feedback, newerRun, planSummary} from '../src/feedback'
+import {JobResult} from '../src/runner'
+import {config, job, sha} from './helpers'
+
+const result: JobResult = {
+  root: 'infra',
+  workspace: 'example',
+  workspaceId: 'ws',
+  jobId: 'job-1',
+  status: 'completed',
+  revision: sha
+}
+
+test('plan summaries reject conflicting counts and ignore arbitrary log text', () => {
+  assert.equal(
+    planSummary([
+      '\u001b[32mPlan: 1 to add, 2 to change, 3 to destroy.\u001b[0m'
+    ]),
+    'Plan: 1 to add, 2 to change, 3 to destroy.'
+  )
+  assert.equal(
+    planSummary([
+      'Plan: 1 to add, 0 to change, 0 to destroy.\nPlan: 2 to add, 0 to change, 0 to destroy.'
+    ]),
+    undefined
+  )
+  assert.equal(
+    planSummary(['echo Plan: 1 to add, 0 to change, 0 to destroy.']),
+    undefined
+  )
+})
+test('full logs collapse and escape untrusted text, bounded below GitHub’s comment limit', () => {
+  const body = commentBody(
+    {...result, workspace: '<script>@everyone</script>'},
+    '<!-- marker -->',
+    20,
+    1,
+    [
+      {
+        name: '</summary>',
+        text: '````\n</pre>@everyone\n' + '😀'.repeat(100_000)
+      }
+    ]
+  )
+  assert.ok(Buffer.byteLength(body) < 65_536)
+  assert.ok(body.includes('<details>'))
+  assert.ok(body.includes('&lt;/pre&gt;'))
+  assert.ok(!body.includes('@everyone'))
+  assert.ok(!body.includes('<script>'))
+})
+test('stale runs and earlier attempts cannot overwrite newer feedback', () => {
+  assert.equal(newerRun('<!-- run:21:1 -->', 20, 10), true)
+  assert.equal(newerRun('<!-- run:20:2 -->', 20, 1), true)
+  assert.equal(newerRun('<!-- run:19:2 -->', 20, 1), false)
+})
+
+function setup(
+  options: {
+    comments?: {id: number; body: string; user: {login: string}}[]
+    head?: string
+    denied?: boolean
+  } = {}
+) {
+  github.context.payload = {pull_request: {number: 1, head: {sha}}}
+  github.context.runId = 20
+  process.env.GITHUB_REPOSITORY = 'example/repo'
+  process.env.GITHUB_RUN_ATTEMPT = '1'
+  let updates = 0
+  let creates = 0
+  let body = ''
+  let logReads = 0
+  const api = {
+    rest: {
+      pulls: {get: async () => ({data: {head: {sha: options.head || sha}}})},
+      issues: {
+        listComments: async () => {},
+        getComment: async () => ({data: options.comments?.[0]}),
+        updateComment: async (request: {body: string}) => {
+          if (options.denied) throw new Error('403')
+          updates++
+          body = request.body
+        },
+        createComment: async (request: {body: string}) => {
+          if (options.denied) throw new Error('403')
+          creates++
+          body = request.body
+        }
+      }
+    },
+    paginate: async () => options.comments || []
+  } as unknown as ReturnType<typeof github.getOctokit>
+  const client = {
+    logs: async () => {
+      logReads++
+      return 'Plan: 1 to add, 0 to change, 0 to destroy.'
+    }
+  }
+  return {api, client, counts: () => ({updates, creates, body, logReads})}
+}
+test('summary mode posts status without fetching raw logs; reruns update one owned comment', async () => {
+  const first = setup()
+  await new Feedback(config(), first.api).publish(
+    result,
+    job('completed'),
+    first.client
+  )
+  assert.equal(first.counts().creates, 1)
+  assert.equal(first.counts().logReads, 0)
+  const second = setup({
+    comments: [
+      {id: 1, body: first.counts().body, user: {login: 'github-actions[bot]'}}
+    ]
+  })
+  await new Feedback(config(), second.api).publish(
+    result,
+    job('completed'),
+    second.client
+  )
+  assert.equal(second.counts().updates, 1)
+  assert.equal(second.counts().creates, 0)
+})
+test('off and non-PR events avoid comments and log reads', async () => {
+  const first = setup()
+  await new Feedback(config({comment: 'off'}), first.api).publish(
+    result,
+    job('completed'),
+    first.client
+  )
+  github.context.payload = {}
+  await new Feedback(config({comment: 'full'}), first.api).publish(
+    result,
+    job('completed'),
+    first.client
+  )
+  assert.equal(first.counts().creates, 0)
+  assert.equal(first.counts().logReads, 0)
+})
+test('outdated PR revisions and newer-run comments skip updates and logs', async () => {
+  const first = setup()
+  await new Feedback(config(), first.api).publish(
+    result,
+    job('completed'),
+    first.client
+  )
+  for (const options of [
+    {head: 'b'.repeat(40)},
+    {
+      comments: [
+        {
+          id: 1,
+          body: first.counts().body.replace('run:20:1', 'run:21:1'),
+          user: {login: 'github-actions[bot]'}
+        }
+      ]
+    }
+  ]) {
+    const next = setup(options)
+    await new Feedback(config({comment: 'full'}), next.api).publish(
+      result,
+      job('completed'),
+      next.client
+    )
+    assert.equal(
+      next.counts().creates + next.counts().updates + next.counts().logReads,
+      0
+    )
+  }
+})
+test('user-authored marker lookalikes are not updated', async () => {
+  const first = setup()
+  await new Feedback(config(), first.api).publish(
+    result,
+    job('completed'),
+    first.client
+  )
+  const next = setup({
+    comments: [{id: 1, body: first.counts().body, user: {login: 'someone'}}]
+  })
+  await new Feedback(config(), next.api).publish(
+    result,
+    job('completed'),
+    next.client
+  )
+  assert.equal(next.counts().updates, 0)
+  assert.equal(next.counts().creates, 1)
+})
+test('missing comment permissions are non-fatal; full logs require opt-in', async () => {
+  const next = setup({denied: true})
+  await new Feedback(config({comment: 'full'}), next.api).publish(
+    result,
+    job('completed'),
+    next.client
+  )
+  assert.equal(next.counts().logReads, 1)
+  assert.equal(result.status, 'completed')
+})
