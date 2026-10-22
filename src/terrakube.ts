@@ -39,6 +39,7 @@ function resource(value: unknown): Resource {
 
 export class TerrakubeClient {
   private readonly dispatcher: EnvHttpProxyAgent
+  private variablesSupported = false
 
   constructor(
     private readonly config: Config,
@@ -252,12 +253,37 @@ export class TerrakubeClient {
     return resource(result.data)
   }
 
+  async checkJobVariables(deadline?: number): Promise<void> {
+    if (!Object.keys(this.config.variables).length || this.variablesSupported)
+      return
+    let supported = false
+    try {
+      const capabilities = await this.json(
+        'GET',
+        '/execution/v1/capabilities',
+        undefined,
+        deadline,
+        'application/json'
+      )
+      supported = capabilities.jobVariables === true
+    } catch {
+      // Do not submit on an older server that could silently ignore these inputs.
+    }
+    if (!supported)
+      throw new Error(
+        'Per-run variables require Terrakube jobVariables support; no job was submitted'
+      )
+    this.variablesSupported = true
+  }
+
   async createJob(
     organizationId: string,
     workspaceId: string,
     templateId: string,
     deadline?: number
   ): Promise<string> {
+    const hasVariables = Object.keys(this.config.variables).length > 0
+    await this.checkJobVariables(deadline)
     const result = await this.json(
       'POST',
       `${this.orgRoute(organizationId)}/job`,
@@ -265,6 +291,7 @@ export class TerrakubeClient {
         data: {
           type: 'job',
           attributes: {
+            ...(hasVariables ? {variables: this.config.variables} : {}),
             templateReference: templateId,
             overrideBranch: this.config.branch,
             ...(this.config.commit ? {commitId: this.config.commit} : {})

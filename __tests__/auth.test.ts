@@ -138,3 +138,14 @@ test('aborting credential acquisition prevents subsequent retries', async () => 
   await assert.rejects(credentials.get(controller.signal), {name: 'AbortError'})
   assert.equal(calls, 1)
 })
+
+test('redacts forwarded secrets in plain text and JSON, including quotes and newlines', () => {
+  const secret = 'quoted "private"\nsecond-line\n'
+  const credentials = new Credentials(config({variables: {key: secret}}))
+  assert.equal(credentials.redact(secret), '***')
+  assert.deepEqual(
+    JSON.parse(credentials.redact(JSON.stringify({value: secret}))),
+    {value: '***'}
+  )
+  assert.equal(credentials.redact('second-line'), '***')
+})

@@ -1,9 +1,11 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
+import {readVariables} from './variables'
 
 export interface Config {
   operation: 'run' | 'plan' | 'apply' | 'discard'
   jobId: string
+  variables: Record<string, string>
   endpoint: string
   token: string
   auth: 'token' | 'oidc'
@@ -119,6 +121,17 @@ export function getActionInput(): Config {
   } else if (jobId) {
     throw new Error('TERRAKUBE_JOB_ID is only used with apply or discard')
   }
+  const variables = readVariables()
+  if (Object.keys(variables).length) {
+    if (operation === 'apply' || operation === 'discard')
+      throw new Error(
+        'Variables must be supplied when creating the plan, not with apply or discard'
+      )
+    if (roots.length !== 1 || !(workspace || workspaceId))
+      throw new Error(
+        'Per-run variables require one explicit root and workspace'
+      )
+  }
   const legacy = core.getInput('SHOW_OUTPUT')
   const comment = choice(
     'COMMENT_MODE',
@@ -145,6 +158,7 @@ export function getActionInput(): Config {
   return {
     operation,
     jobId,
+    variables,
     endpoint: httpUrl(
       core.getInput('TERRAKUBE_ENDPOINT', {required: true}),
       'TERRAKUBE_ENDPOINT'

@@ -91,7 +91,13 @@ export const isSuccess = (result: JobResult): boolean =>
 
 type Client = Pick<
   TerrakubeClient,
-  'find' | 'orgRoute' | 'workspace' | 'createWorkspace' | 'createJob' | 'job'
+  | 'find'
+  | 'orgRoute'
+  | 'workspace'
+  | 'createWorkspace'
+  | 'createJob'
+  | 'job'
+  | 'checkJobVariables'
 >
 
 export async function runJobs(
@@ -104,6 +110,7 @@ export async function runJobs(
   now = Date.now
 ): Promise<JobResult[]> {
   const results: JobResult[] = []
+  await client.checkJobVariables()
   const organization = await client.find(
     '/api/v1/organization',
     'organization',

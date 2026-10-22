@@ -120,3 +120,62 @@ test('new workspace branch comes from the repository default, PR base, or explic
     context.payload = previous
   }
 })
+
+test('forwards only named TF_VAR values, preserving whitespace, empty strings and JSON', () => {
+  const env = {
+    TF_VAR_key: '  first\nsecond\n',
+    TF_VAR_empty: '',
+    TF_VAR_list: '["a","b"]',
+    TF_VAR_unlisted: 'not forwarded'
+  }
+  Object.assign(process.env, env)
+  try {
+    inputs({
+      TERRAKUBE_ROOT: 'infra',
+      TERRAKUBE_WORKSPACE: 'example',
+      TERRAKUBE_VARIABLE_NAMES: 'key\nempty\nlist'
+    })
+    assert.deepEqual(getActionInput().variables, {
+      key: env.TF_VAR_key,
+      empty: '',
+      list: env.TF_VAR_list
+    })
+    inputs()
+    assert.deepEqual(getActionInput().variables, {})
+  } finally {
+    for (const key of Object.keys(env)) delete process.env[key]
+  }
+})
+
+test('rejects missing, duplicated, malformed and oversized variables and unsafe operations', () => {
+  process.env.TF_VAR_key = 'private-value'
+  try {
+    const target = {
+      TERRAKUBE_ROOT: 'infra',
+      TERRAKUBE_WORKSPACE: 'example',
+      TERRAKUBE_COMMIT: 'a'.repeat(40),
+      TERRAKUBE_VARIABLE_NAMES: 'key'
+    }
+    const invalid: Record<string, string>[] = [
+      {TERRAKUBE_VARIABLE_NAMES: 'key\nkey'},
+      {TERRAKUBE_VARIABLE_NAMES: 'bad name'},
+      {TERRAKUBE_VARIABLE_NAMES: 'missing'},
+      {TERRAKUBE_ROOT: ''},
+      {TERRAKUBE_WORKSPACE: ''},
+      {TERRAKUBE_OPERATION: 'apply', TERRAKUBE_JOB_ID: '42'},
+      {TERRAKUBE_OPERATION: 'discard', TERRAKUBE_JOB_ID: '42'}
+    ]
+    for (const overrides of invalid) {
+      inputs({...target, ...overrides})
+      assert.throws(getActionInput, error => {
+        assert.doesNotMatch(String(error), /private-value/)
+        return true
+      })
+    }
+    inputs(target)
+    process.env.TF_VAR_key = 'é'.repeat(40_000)
+    assert.throws(getActionInput, /64 KiB/)
+  } finally {
+    delete process.env.TF_VAR_key
+  }
+})

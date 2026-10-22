@@ -73,6 +73,7 @@ const targets: Target[] = [
 ]
 function fakeClient() {
   return {
+    checkJobVariables: async () => {},
     find: async (
       _route: string,
       type: string,
@@ -282,4 +283,27 @@ test('completed jobs accept known skipped-step spellings without accepting unfin
       /unfinished/
     )
   }
+})
+
+test('unsupported variables fail before workspace creation or job submission', async () => {
+  const client = fakeClient()
+  client.checkJobVariables = async () => {
+    throw new Error('Server lacks jobVariables support')
+  }
+  client.createWorkspace = async () => {
+    throw new Error('unexpected workspace creation')
+  }
+  client.createJob = async () => {
+    throw new Error('unexpected submission')
+  }
+  await assert.rejects(
+    runJobs(
+      config({variables: {key: 'private'}, createWorkspace: true}),
+      targets,
+      client,
+      () => {},
+      async () => {}
+    ),
+    /Server lacks jobVariables support/
+  )
 })

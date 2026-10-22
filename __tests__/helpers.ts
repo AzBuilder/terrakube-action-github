@@ -5,6 +5,7 @@ export const sha = 'a'.repeat(40)
 export const config = (overrides: Partial<Config> = {}): Config => ({
   operation: 'run',
   jobId: '',
+  variables: {},
   endpoint: 'https://terrakube.example',
   token: 'test-token',
   auth: 'token',

@@ -409,3 +409,77 @@ test('workspace creation uses a durable branch while jobs execute the requested 
     await close()
   }
 })
+
+test('submits raw variables only after checking the server capability', async () => {
+  const variables = {
+    private_key: 'first\nsecond\n',
+    empty: '',
+    labels: '["a","b"]'
+  }
+  const {client, pool, agent, close} = setup({variables})
+  pool
+    .intercept({
+      path: '/execution/v1/capabilities',
+      headers: {accept: 'application/json'}
+    })
+    .reply(200, {jobVariables: true})
+  pool
+    .intercept({
+      method: 'POST',
+      path: '/api/v1/organization/org/job',
+      body: (body: string) => {
+        const data = JSON.parse(body).data
+        assert.deepEqual(data.attributes.variables, variables)
+        assert.equal(data.attributes.commitId, sha)
+        return true
+      }
+    })
+    .reply(201, {data: {id: '42', type: 'job'}})
+  try {
+    assert.equal(await client.createJob('org', 'workspace', 'template'), '42')
+    agent.assertNoPendingInterceptors()
+  } finally {
+    await close()
+  }
+})
+
+test('does not submit variables when server support is absent, malformed or cannot be verified', async () => {
+  for (const [status, body] of [
+    [404, 'not found'],
+    [200, {}],
+    [200, {jobVariables: false}],
+    [200, 'invalid JSON'],
+    [503, 'unavailable']
+  ] as const) {
+    const {client, pool, close} = setup({variables: {key: 'private-value'}})
+    pool
+      .intercept({path: '/execution/v1/capabilities'})
+      .reply(status, body)
+      .persist()
+    try {
+      await assert.rejects(
+        client.createJob('org', 'workspace', 'template'),
+        /no job was submitted/
+      )
+    } finally {
+      await close()
+    }
+  }
+})
+
+test('redacts multiline forwarded variables in logs and structured context', async () => {
+  const {client, pool, close} = setup({
+    variables: {key: 'private-first\nprivate-second'}
+  })
+  pool
+    .intercept({path: '/tfoutput/v1/organization/org/job/42/step/step-1'})
+    .reply(200, 'private-first\nprivate-second\nprivate-second')
+  try {
+    assert.equal(
+      await client.logs('/tfoutput/v1/organization/org/job/42/step/step-1'),
+      '***\n***'
+    )
+  } finally {
+    await close()
+  }
+})

@@ -42,6 +42,7 @@ function setup(templateTcl = tcl) {
   let document = savedJob()
   const transitions: string[] = []
   const client = {
+    checkJobVariables: async () => {},
     find: async (_route: string, type: string) =>
       type === 'organization'
         ? item(type, 'org')

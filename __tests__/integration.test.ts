@@ -36,6 +36,8 @@ async function execute(
     roots?: string[]
     trusted?: boolean
     apiError?: boolean
+    variables?: Record<string, string>
+    variableSupport?: boolean
   } = {}
 ) {
   const directory = await mkdtemp(path.join(tmpdir(), 'terrakube-http-'))
@@ -79,6 +81,11 @@ async function execute(
           )
           return
         }
+        if (url.pathname === '/execution/v1/capabilities') {
+          assert.equal(request.headers.accept, 'application/json')
+          send({jobVariables: options.variableSupport !== false})
+          return
+        }
         if (options.apiError) {
           send({errors: [{detail: 'private-server-details'}]}, 403)
           return
@@ -114,6 +121,9 @@ async function execute(
           assert.equal(body.data.attributes.commitId, sha)
           assert.equal(body.data.attributes.overrideBranch, 'feature')
           assert.equal(body.data.attributes.templateReference, 'template')
+          if (options.variables)
+            assert.deepEqual(body.data.attributes.variables, options.variables)
+          else assert.equal(body.data.attributes.variables, undefined)
           submissions++
           send({data: item('job', `job-${submissions}`)})
           return
@@ -178,12 +188,18 @@ async function execute(
       INPUT_TERRAKUBE_AUTH: options.oidc ? 'oidc' : 'token',
       INPUT_TERRAKUBE_OIDC_AUDIENCE: options.oidc ? 'api://terrakube' : '',
       INPUT_TERRAKUBE_ROOT: roots.join('\n'),
+      INPUT_TERRAKUBE_WORKSPACE: options.variables ? roots[0] : '',
+      INPUT_TERRAKUBE_VARIABLE_NAMES: Object.keys(options.variables || {}).join(
+        '\n'
+      ),
       INPUT_TERRAKUBE_BRANCH: 'feature',
       INPUT_TERRAKUBE_COMMIT: sha,
       INPUT_COMMENT_MODE: 'off',
       ACTIONS_ID_TOKEN_REQUEST_URL: `${endpoint}/oidc?request=1`,
       ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'oidc-request-token'
     })
+    for (const [name, value] of Object.entries(options.variables || {}))
+      env[`TF_VAR_${name}`] = value
     let code = 0
     let stdout = ''
     try {
@@ -283,4 +299,27 @@ test('standalone OIDC authentication recovers from a dropped connection without 
   assert.equal(result.code, 0)
   assert.equal(result.tokenRequests, 2)
   assert.equal(result.submissions, 1)
+})
+
+test('standalone bundle forwards only configured job variables over authenticated TLS', async () => {
+  const variables = {
+    key: 'bundle-private-first\nbundle-private-second\n',
+    empty: '',
+    list: '["a","b"]'
+  }
+  const result = await execute({variables})
+  assert.equal(result.code, 0)
+  assert.equal(result.submissions, 1)
+  assert.doesNotMatch(result.outputs + result.summary, /bundle-private/)
+})
+
+test('standalone bundle refuses unsupported per-run variables without creating a job', async () => {
+  const result = await execute({
+    variables: {key: 'bundle-private'},
+    variableSupport: false
+  })
+  assert.equal(result.code, 1)
+  assert.equal(result.submissions, 0)
+  assert.match(result.summary, /no job was submitted/)
+  assert.doesNotMatch(result.outputs + result.summary, /bundle-private/)
 })

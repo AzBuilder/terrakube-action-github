@@ -8,12 +8,19 @@ export class Credentials {
   private readonly secrets = new Set<string>()
 
   constructor(
-    private readonly config: Pick<Config, 'auth' | 'token' | 'audience'>,
+    private readonly config: Pick<Config, 'auth' | 'token' | 'audience'> &
+      Partial<Pick<Config, 'variables'>>,
     private readonly getIDToken = core.getIDToken,
     private readonly now = Date.now,
     private readonly pause = (ms: number, signal?: AbortSignal) =>
       delay(ms, undefined, {signal})
   ) {
+    for (const value of Object.values(config.variables || {}))
+      for (const secret of [value, ...value.split(/\r?\n/)])
+        if (secret) {
+          this.secrets.add(secret)
+          this.secrets.add(JSON.stringify(secret).slice(1, -1))
+        }
     if (config.token) {
       core.setSecret(config.token)
       this.secrets.add(config.token)
@@ -21,7 +28,8 @@ export class Credentials {
   }
 
   redact(text: string): string {
-    for (const token of this.secrets) text = text.replaceAll(token, '***')
+    for (const token of [...this.secrets].sort((a, b) => b.length - a.length))
+      text = text.replaceAll(token, '***')
     return text
   }
 

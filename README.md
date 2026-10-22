@@ -105,6 +105,7 @@ The action runs on Node 24 and includes its dependencies. Git is needed for chan
 | `TERRAKUBE_BRANCH`           | Branch to execute                                                       | PR head branch or current ref                      |
 | `TERRAKUBE_WORKSPACE_BRANCH` | Default branch for newly created workspaces                             | Repository default, PR base, or `main`             |
 | `TERRAKUBE_COMMIT`           | Full commit SHA to execute and verify                                   | PR head SHA or event SHA                           |
+| `TERRAKUBE_VARIABLE_NAMES`   | Names to forward from `TF_VAR_<name>`, one per line                     |                                                    |
 | `CREATE_WORKSPACE`           | Allow creating missing workspaces                                       | `false`                                            |
 | `TERRAKUBE_SSH_KEY_NAME`     | Existing SSH key for workspace creation and SSH repository matching     |                                                    |
 | `TIMEOUT_SECONDS`            | Execution deadline per job, from submission through polling; 1–86400    | `3600`                                             |
@@ -120,6 +121,46 @@ The action runs on Node 24 and includes its dependencies. Git is needed for chan
 `TERRAKUBE_OPERATION` defaults to `run`. Set it to `plan`, `apply` or `discard` for the staged workflow below. All staged operations require one explicit root, an existing workspace and a full commit SHA. Apply and discard also require a numeric `TERRAKUBE_JOB_ID`.
 
 An explicit `COMMENT_MODE` takes precedence over `SHOW_OUTPUT`. Token and OIDC authentication are mutually exclusive. Workspace name and ID inputs are mutually exclusive.
+
+## Per-run Terraform variables
+
+Set `TERRAKUBE_VARIABLE_NAMES` to the names you want to forward, without the
+`TF_VAR_` prefix. Only those variables leave the runner. For example, add this to
+an action step that already specifies its endpoint, authentication, template,
+root and workspace:
+
+```yaml
+env:
+  TF_VAR_snowflake_private_key: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+  TF_VAR_snowflake_account: ${{ vars.SNOWFLAKE_ACCOUNT }}
+with:
+  TERRAKUBE_VARIABLE_NAMES: |
+    snowflake_private_key
+    snowflake_account
+```
+
+This requires backend support advertised by `/execution/v1/capabilities`
+(`jobVariables: true`); the action refuses to submit when support cannot be
+verified.
+
+Use one explicit root and workspace. Values belong to that job and do not update
+workspace variables. Supply them on `run` or `plan`; `apply` resumes the same job
+and saved plan without accepting new values. A missing environment variable fails
+before submission; a defined empty string is valid. The limit is 100 names and
+64 KiB of JSON-encoded values.
+
+Values use ordinary [`TF_VAR_*` syntax](https://developer.hashicorp.com/terraform/language/values/variables#environment-variables): strings are raw, including PEM newlines;
+complex values use Terraform expressions such as `TF_VAR_regions: '["eu-west-1"]'`.
+Do not wrap strings in literal HCL quotes as a TFE run-variable helper might do.
+The backend passes them as `TF_VAR_*`, replacing matching workspace or template
+variables. Terraform variable files and explicit CLI `-var` arguments still take
+precedence.
+
+Read secrets before the action step. GitHub environment secrets are available
+only to jobs referencing that environment after its approval rules pass; a
+separate approval job does not make them available to the plan job. Secrets
+from AWS Secrets Manager can be loaded in the plan job and forwarded this way. Mark secret Terraform inputs `sensitive = true`; Terraform
+can still store them in plan and state files, so protect Terrakube storage too.
 
 ## Workspaces
 
