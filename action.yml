@@ -39,7 +39,7 @@ inputs:
   TERRAKUBE_WORKSPACE_ID:
     description: Workspace ID instead of a name; requires exactly one explicit root
   TERRAKUBE_VARIABLE_NAMES:
-    description: Newline-separated Terraform variable names to forward from TF_VAR_<name>; run/plan only, requires server jobVariables support
+    description: Newline-separated Terraform variable names to forward from TF_VAR_<name>; run/plan only, requires Manage workspace permission and server jobVariables support
   CREATE_WORKSPACE:
     description: Allow creating missing workspaces from terrakube.json
     default: 'false'

@@ -143,6 +143,11 @@ This requires backend support advertised by `/execution/v1/capabilities`
 (`jobVariables: true`); the action refuses to submit when support cannot be
 verified.
 
+The Terrakube identity also needs **Manage workspace** permission on the target
+workspace, in addition to permission to create jobs. Plan-only access cannot
+supply variable overrides. Grant this through workspace-scoped access where
+possible, keeping PR and production identities separate.
+
 Use one explicit root and workspace. Values belong to that job and do not update
 workspace variables. Supply them on `run` or `plan`; `apply` resumes the same job
 and saved plan without accepting new values. A missing environment variable fails
