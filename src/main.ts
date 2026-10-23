@@ -1,191 +1,98 @@
 import * as core from '@actions/core'
-import * as glob from '@actions/glob'
-import * as httpm from '@actions/http-client'
-import * as github from '@actions/github'
-import { GitHubActionInput, getActionInput } from './userInput'
-import { TerrakubeClient } from './terrakube'
-import { readFile } from 'fs/promises'
-import path from 'path'
+import {getActionInput} from './userInput'
+import {TerrakubeClient} from './terrakube'
+import {discoverTargets} from './targets'
+import {isSuccess, JobResult, runJobs} from './runner'
+import {Feedback, jobSummary} from './feedback'
+import {continueRun} from './operations'
+
+export function outputs(results: JobResult[]): void {
+  const jobs = results.filter(result => result.jobId)
+  core.setOutput('JOB_ID', jobs.length === 1 ? jobs[0]?.jobId : '')
+  core.setOutput('JOB_IDS', JSON.stringify(jobs.map(result => result.jobId)))
+  core.setOutput('JOB_URL', jobs.length === 1 ? jobs[0]?.jobUrl || '' : '')
+  core.setOutput(
+    'HAS_CHANGES',
+    results.some(result => result.status === 'planned')
+      ? 'true'
+      : results.length && results.every(result => result.status === 'noChanges')
+        ? 'false'
+        : ''
+  )
+  core.setOutput(
+    'STATUS',
+    !results.length
+      ? 'skipped'
+      : results.some(result => result.status === 'planned')
+        ? 'planned'
+        : results.every(isSuccess)
+          ? 'completed'
+          : results.some(result =>
+                ['pending', 'running', 'queue', 'approved'].includes(
+                  result.status
+                )
+              )
+            ? 'running'
+            : 'failed'
+  )
+  core.setOutput('JOBS', JSON.stringify(results))
+}
 
 async function run(): Promise<void> {
+  let client: TerrakubeClient | undefined
+  let results: JobResult[] = []
+  let failure = ''
+  let feedback: Feedback | undefined
   try {
-    const githubActionInput: GitHubActionInput = await getActionInput()
-    const terrakubeClient = new TerrakubeClient(githubActionInput)
-
-    const patterns = ['**/terrakube.json']
-    const globber = await glob.create(patterns.join('\n'))
-
-    core.info(`Changed Directory: ${githubActionInput.terrakubeFolder}`)
-    for await (const file of globber.globGenerator()) {
-      const terrakubeData = JSON.parse(await readFile(`${file}`, "utf8"))
-
-      const workspaceFolder = path.relative(githubActionInput.githubWorkspace, path.dirname(file))
-      const isFolderChanged = githubActionInput.terrakubeFolder.split(" ").indexOf(workspaceFolder) > -1;
-      core.info(`Folder ${workspaceFolder} was_changed: ${isFolderChanged}`);
-      const workspaceName = terrakubeData.workspace && terrakubeData.workspace.trim() !== ""
-          ? terrakubeData.workspace : path.basename(workspaceFolder);
-
-
-      //Folder with terrakube.json file change
-      if (isFolderChanged) {
-        core.startGroup(`Execute Workspace ${workspaceName}`);
-
-        console.debug(`Processing: ${file}`)
-
-
-        core.debug(`Loaded JSON: ${JSON.stringify(terrakubeData)}`)
-        core.info(`Organization: ${githubActionInput.terrakubeOrganization}`)
-        core.info(`Workspace: ${workspaceName}`)
-        core.info(`Folder: /${workspaceFolder}`)
-        core.info(`Branch: ${githubActionInput.branch}`)
-
-        core.info(`Running Workspace ${workspaceName} with Template ${githubActionInput.terrakubeTemplate}`)
-        core.info(`Checking if workspace ${workspaceName}`)
-        const organizationId = await terrakubeClient.getOrganizationId(githubActionInput.terrakubeOrganization);
-
-
-        if (organizationId !== "") {
-          let workspaceId = await terrakubeClient.getWorkspaceId(organizationId, workspaceName)
-          if (workspaceId === "") {
-            core.info(`Creating new workspace ${workspaceName}`)
-
-            let sshId = ""
-            if (githubActionInput.terrakubeSshKeyName !== "") {
-              core.info(`Searching SSH ${githubActionInput.terrakubeSshKeyName}`)
-              sshId = await terrakubeClient.getSshId(organizationId, githubActionInput.terrakubeSshKeyName)
-              core.info(`Ssh Id: ${sshId}`)
-            }
-
-            workspaceId = await terrakubeClient.createWorkspace(organizationId, workspaceName, terrakubeData.terraform, workspaceFolder, githubActionInput.terrakubeRepository, githubActionInput.branch, sshId)
-          }
-
-          core.info(`Searching template ${githubActionInput.terrakubeTemplate}`)
-          const templateId = await terrakubeClient.getTemplateId(organizationId, githubActionInput.terrakubeTemplate)
-
-          if (templateId !== "") {
-            core.info(`Using template id ${templateId}`)
-
-            core.info(`Creating new job: `)
-            const jobId = await terrakubeClient.createJobId(organizationId, workspaceId, templateId, githubActionInput.branch)
-            core.debug(`JobId: ${jobId}`)
-
-
-            await checkTerrakubeLogs(terrakubeClient, githubActionInput.githubToken, organizationId, jobId, workspaceName, githubActionInput.terrakubeEndpoint, githubActionInput.showOutput)
-
-          } else {
-            core.error(`Template not found: ${githubActionInput.terrakubeTemplate} in Organization: ${githubActionInput.terrakubeOrganization}`)
-          }
-
-
-        } else {
-          core.error(`Organization not found: ${githubActionInput.terrakubeOrganization} in Endpoint: ${githubActionInput.terrakubeEndpoint}`)
+    const config = getActionInput()
+    const targets = await discoverTargets(config)
+    if (!config.commit)
+      core.warning(
+        'TERRAKUBE_COMMIT is unset; execution follows the branch tip without revision verification'
+      )
+    if (!targets.length)
+      core.info('No changes under discovered Terraform roots')
+    else {
+      const runClient = new TerrakubeClient(config)
+      client = runClient
+      const reporting = new Feedback(config)
+      feedback = reporting
+      const execute =
+        config.operation === 'apply' || config.operation === 'discard'
+          ? continueRun
+          : runJobs
+      results = await execute(
+        config,
+        targets,
+        runClient,
+        current => {
+          results = current
+          outputs(results)
+        },
+        async (result, document) => {
+          await reporting.collect(result, runClient)
+          await reporting.publish(result, document, runClient)
         }
-        core.endGroup();
-      }
-
+      )
     }
-
-
+    if (results.some(result => !isSuccess(result)))
+      failure =
+        'One or more Terrakube runs did not succeed. See the job summary and JOBS output.'
   } catch (error) {
-    if (error instanceof Error) core.setFailed(error.message)
-  }
-}
-
-async function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function checkTerrakubeLogs(terrakubeClient: TerrakubeClient, githubToken: string, organizationId: string, jobId: string, workspaceFolder: string, terrakubeEndpoint: string, show_output: boolean) {
-  let jobResponse = await terrakubeClient.getJobData(organizationId, jobId)
-  let jobResponseJson = JSON.parse(jobResponse)
-
-  while (jobResponseJson.data.attributes.status !== "completed" && jobResponseJson.data.attributes.status !== "failed") {
-    await sleep(5000)
-    jobResponse = await terrakubeClient.getJobData(organizationId, jobId)
-    jobResponseJson = JSON.parse(jobResponse)
-    core.debug("Waiting for job information...")
-
-  }
-
-  core.info(`${jobResponse}`)
-  core.info(`${JSON.stringify(jobResponseJson.included)}`)
-  const httpClient = terrakubeClient.getHttpClient();
-  const jobSteps = jobResponseJson.included
-  core.info(`${Object.keys(jobSteps).length}`)
-
-  let finalComment = `## Workspace: \`${workspaceFolder}\` Status: \`${jobResponseJson.data.attributes.status.toUpperCase()}\` \n`;
-  for (let index = 0; index < Object.keys(jobSteps).length; index++) {
-
-    core.startGroup(`Running ${jobSteps[index].attributes.name}`)
-
-    if (jobSteps[index].attributes.status !== "completed" && jobSteps[index].attributes.status !== "failed") {
-      core.info("Step was skipped")
-      core.endGroup()
-      continue;
+    failure = error instanceof Error ? error.message : 'Terrakube action failed'
+  } finally {
+    outputs(results)
+    if (failure) core.setOutput('STATUS', 'failed')
+    try {
+      await core.summary
+        .addRaw(jobSummary(results, failure, id => feedback?.planFor(id) || ''))
+        .write()
+    } catch {
+      core.warning('Could not write the GitHub job summary')
     }
-
-    const outputPath = new URL(jobSteps[index].attributes.output).pathname
-    const response: httpm.HttpClientResponse = await httpClient.get(`${terrakubeEndpoint}${outputPath}`, {
-      'Authorization': `Bearer ${terrakubeClient.getAuthToken()}`
-  });
-
-    let body: string = await response.readBody()
-    core.info(body)
-    core.endGroup()
-
-    //const convert = new Convert();
-    //const commentBody = `Logs from step: ${jobSteps[index].attributes.name} \`\`\`\n${convert.toHtml(body)}\n\`\`\` `
-
-    if (show_output) {
-      body = body.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-      body = body.replace(/^(\s*)\+/gm, '+$1');
-      const commentBody = `\n ## Logs: ${jobSteps[index].attributes.name} status ${jobSteps[index].attributes.status} \n \`\`\`diff\n${body}\n\`\`\` `;
-      finalComment = finalComment.concat(commentBody)
-    }
-
+    await client?.close()
   }
-
-  if (show_output) {
-    core.info("Setup Octoki client")
-    const octokit = github.getOctokit(githubToken)
-
-    core.info("Getting payload")
-    const pull_request = github.context.payload;
-
-    core.info("Send message")
-    await octokit.rest.issues.createComment({
-      ...github.context.repo,
-      issue_number: pull_request.number,
-      body: `${finalComment}`
-    });
-  }
-
-  if (jobResponseJson.data.attributes.status === "completed") {
-    return true
-  } else {
-    return false
-  }
-
-
+  if (failure) core.setFailed(failure)
 }
 
-async function setupVariable(terrakubeClient: TerrakubeClient, organizationId: string, workspaceId: string, key: string, value: string) {
-
-  const variableId = await terrakubeClient.getVariableId(organizationId, workspaceId, key)
-
-  if (variableId === "") {
-    await terrakubeClient.createVariable(organizationId, workspaceId, key, value)
-    return true
-  } else {
-    const variableData = await terrakubeClient.getVariableById(organizationId, workspaceId, variableId)
-
-    if (variableData.data.attributes.value === value) {
-      return false
-    } else {
-      await terrakubeClient.updateVariableById(organizationId, workspaceId, variableId, value)
-      return true
-    }
-  }
-}
-
-run()
+run().catch(() => core.setFailed('Terrakube action failed unexpectedly'))
